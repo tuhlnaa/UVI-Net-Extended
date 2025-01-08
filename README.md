@@ -1,13 +1,25 @@
 # Data-Efficient Unsupervised Interpolation Without Any Intermediate Frame for 4D Medical Images (CVPR 2024)
 
-[![arXiv](https://img.shields.io/badge/arXiv-2404.01464-b31b1b.svg)](https://arxiv.org/abs/2404.01464)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14238626.svg)](https://doi.org/10.5281/zenodo.14238626)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.3%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
+[![GitHub repo size](https://img.shields.io/github/repo-size/tuhlnaa/UVI-Net-Extended?label=Repo%20size)](https://github.com/tuhlnaa/UVI-Net-Extended)
+
+<p align="center">
+  <a href="https://github.com/tuhlnaa/UVI-Net-Extended">
+    <img alt="Repobeats analytics image" src = "https://repobeats.axiom.co/api/embed/d546e92cbd54d8b687c535b64de7bd7ae7e969ea.svg">
+  </a>
+</p>
+
+<br>
+
+## Abstract
+
+[![arXiv](https://img.shields.io/badge/arXiv-2404.01464-B31B1B?logo=arxiv)](https://arxiv.org/abs/2404.01464)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.14238626-1682D4?logo=zenodo)](https://doi.org/10.5281/zenodo.14238626)
+
+4D medical images, which represent 3D images with temporal information, are crucial in clinical practice for capturing dynamic changes and monitoring long-term disease progression. However, acquiring 4D medical images poses challenges due to factors such as radiation exposure and imaging duration, necessitating a balance between achieving high temporal resolution and minimizing adverse effects. Given these circumstances, not only is data acquisition challenging, but increasing the frame rate for each dataset also proves difficult. To address this challenge, this paper proposes a simple yet effective **U**nsupervised **V**olumetric **I**nterpolation framework, UVI-Net. This framework facilitates temporal interpolation without the need for any intermediate frames, distinguishing it from the majority of other existing unsupervised methods. Experiments on benchmark datasets demonstrate significant improvements across diverse evaluation metrics compared to unsupervised and supervised baselines. Remarkably, our approach achieves this superior performance even when trained with a dataset as small as one, highlighting its exceptional robustness and efficiency in scenarios with sparse supervision. This positions UVI-Net as a compelling alternative for 4D medical imaging, particularly in settings where data availability is limited.
 
 > **Data-Efficient Unsupervised Interpolation Without Any Intermediate Frame for 4D Medical Images**<br>
 > JungEun Kim*, Hangyul Yoon*, Geondo Park, Kyungsu Kim, Eunho Yang <br>
-
->**Abstract**: <br>
-> 4D medical images, which represent 3D images with temporal information, are crucial in clinical practice for capturing dynamic changes and monitoring long-term disease progression. However, acquiring 4D medical images poses challenges due to factors such as radiation exposure and imaging duration, necessitating a balance between achieving high temporal resolution and minimizing adverse effects. Given these circumstances, not only is data acquisition challenging, but increasing the frame rate for each dataset also proves difficult. To address this challenge, this paper proposes a simple yet effective **U**nsupervised **V**olumetric **I**nterpolation framework, UVI-Net. This framework facilitates temporal interpolation without the need for any intermediate frames, distinguishing it from the majority of other existing unsupervised methods. Experiments on benchmark datasets demonstrate significant improvements across diverse evaluation metrics compared to unsupervised and supervised baselines. Remarkably, our approach achieves this superior performance even when trained with a dataset as small as one, highlighting its exceptional robustness and efficiency in scenarios with sparse supervision. This positions UVI-Net as a compelling alternative for 4D medical imaging, particularly in settings where data availability is limited.
 
 <div align='center'>
     <img src='assets/main_figure.png' width='800px'>
@@ -24,6 +36,8 @@
   <img src=assets/cardiac.gif width='800px'>
   <img src=assets/lung.gif width='800px'> 
 </div>
+
+<br>
 
 ## ⚒️ Requirements
 ### Installation

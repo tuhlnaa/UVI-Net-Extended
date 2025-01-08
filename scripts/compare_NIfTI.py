@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 
+
 def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "comparison_output"):
     """
     Compare two NIfTI files and generate comparison metrics and visualizations.
@@ -68,7 +69,8 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
                 f.write(f"{stat_name}: {stat_value}\n")
     
     # Visualization function
-    def plot_middle_slices(data, title, filename, color='gray'):
+    def plot_middle_slices(data, title, filename, color='gray', vmin=0, vmax=1):
+    #def plot_middle_slices(data, title, filename, color='gray'):
         """Plot middle slices in all three orientations"""
         mid_x = data.shape[0] // 2
         mid_y = data.shape[1] // 2
@@ -76,6 +78,7 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
         
         # Increase bottom margin to prevent x-axis label cutoff
         fig = plt.figure(figsize=(15, 4))
+        plt.subplots_adjust(wspace=0.4)
         
         # Create subplots with space for colorbars
         ax1 = plt.subplot(131)
@@ -83,15 +86,15 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
         ax3 = plt.subplot(133)
         
         # Plot images with colorbars
-        im1 = ax1.imshow(data[mid_x, :, :], cmap=color)
+        im1 = ax1.imshow(data[mid_x, :, :], cmap=color, vmin=vmin, vmax=vmax)
         plt.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
         ax1.set_title('Sagittal')
         
-        im2 = ax2.imshow(data[:, mid_y, :], cmap=color)
+        im2 = ax2.imshow(data[:, mid_y, :], cmap=color, vmin=vmin, vmax=vmax)
         plt.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
         ax2.set_title('Coronal')
         
-        im3 = ax3.imshow(data[:, :, mid_z], cmap=color)
+        im3 = ax3.imshow(data[:, :, mid_z], cmap=color, vmin=vmin, vmax=vmax)
         plt.colorbar(im3, ax=ax3, fraction=0.046, pad=0.04)
         ax3.set_title('Axial')
         
@@ -110,7 +113,7 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
     plot_middle_slices(data2, 'File 2 Middle Slices', 'file2_slices.png')
     
     if data1.shape == data2.shape:
-        plot_middle_slices(diff, 'Difference Middle Slices', 'difference_slices.png', color='viridis')
+        plot_middle_slices(diff, 'Difference Middle Slices', 'difference_slices.png', color='viridis', vmin=-1, vmax=1)
         
         # Improved histogram visualization
         plt.figure(figsize=(10, 6))

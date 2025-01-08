@@ -17,7 +17,7 @@ from tqdm import tqdm
 from pathlib import Path
 from PIL import Image, ImageDraw
 from dataclasses import dataclass
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 @dataclass
 class PreprocessingConfig:
@@ -39,29 +39,46 @@ class CTImageProcessor:
 
     @staticmethod
     def normalize(ct_scan: np.ndarray) -> np.ndarray:
-        """Normalize CT scan using min-max scaling."""
-        return (ct_scan - ct_scan.min()) / (ct_scan.max() - ct_scan.min())
-    
+        """Normalize CT scan values to [0, 1] range using min-max scaling."""
+        min_val, max_val = ct_scan.min(), ct_scan.max()
+        return (ct_scan - min_val) / (max_val - min_val)
+
+
+    # def _create_mask(self, image: np.ndarray) -> np.ndarray:
+    #     """Create a binary mask using only scipy."""
+    #     labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
+    #     label_count = np.bincount(labels.ravel().astype(np.int32))
+    #     label_count[0] = 0
+        
+    #     mask = labels == label_count.argmax()
+        
+    #     # Fill holes in each slice
+    #     for i in range(mask.shape[-1]):
+    #         if mask[..., i].sum() > 0:
+    #             mask[..., i] = ndimage.binary_fill_holes(mask[..., i])
+        
+    #     return mask
+
 
     def _create_mask(self, image: np.ndarray) -> np.ndarray:
         """Create a binary mask for the CT image."""
         labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
         label_count = np.bincount(labels.ravel().astype(np.int32))
-        label_count[0] = 0
+        label_count[0] = 0  # Ignore background
 
         mask = labels == label_count.argmax()
         mask_new = np.zeros_like(image)
 
-        # Find contour
+        # Process each slice
         for i in range(mask.shape[-1]):
             if mask[..., i].sum() == 0:
                 continue
-                
-            contours, _ = cv2.findContours(
-                mask[..., i].astype(np.uint8),
-                cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_NONE
-            )
+
+            # Convert slice to uint8 for OpenCV
+            slice_mask = mask[..., i].astype(np.uint8)
+
+            contours, _ = cv2.findContours(slice_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            
             if not contours:
                 continue
                 
@@ -78,16 +95,17 @@ class CTImageProcessor:
             
         return mask_new
 
+
     def remove_bed(self, ct_image: np.ndarray) -> np.ndarray:
-        """Remove bed from CT scan."""
+        """Remove bed artifact from CT scan using thresholding and morphological operations."""
         threshold_mask = ct_image > self.config.bed_threshold
         
-        # Apply multiple mask iterations for refinement
+        # Iteratively refine mask
         refined_mask = threshold_mask
         for _ in range(3):
             refined_mask = self._create_mask(refined_mask)
             
-        # Apply dilation
+        # Apply morphological dilation
         kernel = np.ones(self.config.dilation_kernel)
         for _ in range(self.config.dilation_iterations):
             refined_mask = morphology.dilation(refined_mask, kernel)
@@ -96,33 +114,44 @@ class CTImageProcessor:
         result = np.full_like(ct_image, ct_image.min())
         result[refined_mask == 1] = ct_image[refined_mask == 1]
         return result
-    
-    
+
+
     def center_crop(self, img: np.ndarray) -> np.ndarray:
-        """Center crop the CT image based on content."""
+        """
+        Center crop the CT image based on content above threshold.
         
-        def find_content_bounds(arr: np.ndarray, axis: int) -> Tuple[int, int]:
-            proj = np.any(arr > self.config.bed_threshold, axis=axis)
-            indices = np.where(proj)[0]
-            return indices[0], indices[-1] if len(indices) > 0 else 0
+        Args:
+            img: Input CT image array of shape (H, W, D)
+            
+        Returns:
+            Cropped and padded image of the same shape as input
+        """
+        def find_content_bounds(array: np.ndarray, axis: int) -> Tuple[int, int]:
+            """Find the content boundaries along specified axis."""
+            proj = np.any(array > self.config.bed_threshold, axis=axis)
+            coords = np.where(proj)[0]
+            return coords[0], coords[-1] if len(coords) > 0 else (0, array.shape[axis])
+
+        # Find content boundaries along height and width
+        h_start, h_end = find_content_bounds(img, axis=(1, 2))
+        w_start, w_end = find_content_bounds(img, axis=(0, 2))
         
-        y_start, y_end = find_content_bounds(img, (0, 2))
-        x_start, x_end = find_content_bounds(img, (1, 2))
-        
-        cropped = img[x_start:x_end+1, y_start:y_end+1, :]
+        # Crop the image
+        cropped = img[h_start:h_end, w_start:w_end, :]
         
         # Calculate padding
-        pad_x = (img.shape[0] - cropped.shape[0]) // 2
-        pad_y = (img.shape[1] - cropped.shape[1]) // 2
+        h_pad = [(img.shape[0] - cropped.shape[0]) // 2, 0]
+        h_pad[1] = img.shape[0] - cropped.shape[0] - h_pad[0]
         
-        padding = (
-            (max(0, pad_x), max(0, img.shape[0] - cropped.shape[0] - pad_x)),
-            (max(0, pad_y), max(0, img.shape[1] - cropped.shape[1] - pad_y)),
-            (0, 0)
-        )
+        w_pad = [(img.shape[1] - cropped.shape[1]) // 2, 0]
+        w_pad[1] = img.shape[1] - cropped.shape[1] - w_pad[0]
         
-        return np.pad(cropped, padding, mode="minimum")
-
+        # Ensure non-negative padding
+        pad_dims = [(max(0, p1), max(0, p2)) for p1, p2 in [h_pad, w_pad]]
+        pad_dims.append((0, 0))  # No padding for depth dimension
+        
+        return np.pad(cropped, pad_dims, mode="minimum")
+    
 
 class DCMDataset:
     """Handles DICOM dataset operations."""
@@ -148,7 +177,7 @@ class DCMDataset:
         new_shape: Tuple[int, int, int],
         rotate: bool = False
     ) -> np.ndarray:
-        """Resize volume to target shape."""
+        """Resize volume to target shape using trilinear interpolation."""
         with torch.no_grad():
             image_tensor = torch.from_numpy(image_array)[None, None, ...].float()
             resized = F.interpolate(image_tensor, new_shape, mode="trilinear")
@@ -166,7 +195,7 @@ class LungPreprocessor:
     def __init__(
         self,
         config: Optional[PreprocessingConfig] = None,
-        output_dir: Optional[Path] = None
+        output_dir: Optional[Union[str, Path]] = None
     ):
         self.config = config or PreprocessingConfig()
         self.output_dir = Path(output_dir) if output_dir else Path("preprocessed_data")
@@ -175,7 +204,7 @@ class LungPreprocessor:
         
 
     def process_scan(self, folder_path: Path) -> np.ndarray:
-        """Process a single CT scan."""
+        """Process a single CT scan through the complete pipeline."""
         image_array = self.dcm_dataset.read_dcm_files(folder_path)
         
         # Two-step resizing with rotation

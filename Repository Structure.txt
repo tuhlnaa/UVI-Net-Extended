@@ -1,0 +1,19 @@
+UVI-Net-Extended/
+│
+├── configs/
+│
+├── data/
+│   ├── lung_preprocess.py
+│   └── preprocess_func.py
+│
+├── engine/
+│
+├── notebooks/
+│
+├── output/
+│
+├── models/
+│
+├── scripts/
+│
+└── utils/

@@ -98,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="dataset/4D-Lung-Preprocessed/",
+        default="dataset/4D-Lung_Preprocessed/",
         help="output directory for saving the preprocessed outcomes",
     )
     args = parser.parse_args()

@@ -70,7 +70,7 @@ def main(args):
         train_set = datasets.ACDCHeartDataset(data_dir, phase="train", split=split)
         val_set = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
     elif args.dataset == "lung":
-        data_dir = os.path.join("dataset", "4D-Lung-Preprocessed")
+        data_dir = os.path.join("dataset", "4D-Lung_Preprocessed")
         train_set = datasets.LungDataset(data_dir, phase="train", split=split)
         val_set = datasets.LungDataset(data_dir, phase="test", split=split)
     train_loader = DataLoader(

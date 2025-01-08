@@ -290,7 +290,7 @@ def main():
     parser = argparse.ArgumentParser(description="Preprocess 4D Lung CT scans")
     parser.add_argument("--raw_folder_dir", type=Path, default=Path("dataset/4D-Lung/"), 
                         help="Raw data folder directory")
-    parser.add_argument("--output_dir", type=Path, default=Path("dataset/4D-Lung-Preprocessed/"), 
+    parser.add_argument("--output_dir", type=Path, default=Path("dataset/4D-Lung_Preprocessed/"), 
                         help="Output directory for preprocessed data")
     parser.add_argument("--n_processes", type=int, default=None,
                         help="Number of processes to use (default: number of CPU cores - 1)")

@@ -1,6 +1,7 @@
 # Test file
 runs/*
 output/*
+dataset/*
 comparison_results/*
 comparison_output/*
 test_*.py

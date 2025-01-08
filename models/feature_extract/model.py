@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torch
 import numpy as np
-from scipy.signal import gaussian
-from scipy.ndimage import gaussian_filter
+# from scipy.signal import gaussian
+# from scipy.ndimage import gaussian_filter
 
 
 class FeatureExtract(nn.Module):

@@ -1,21 +1,21 @@
 import os
 import random
-from argparse import ArgumentParser
-from math import log10, sqrt
-
-import losses
 import numpy as np
 import torch
-import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
-from utils import datasets, utils
+import torch.backends.cudnn as cudnn
+
 from lpips import LPIPS
+from math import log10, sqrt
+from natsort import natsorted
+from argparse import ArgumentParser
+from torch.utils.data import DataLoader
+
+import losses
+from utils import datasets, utils
 from models.UNet.model import Unet3D, Unet3D_multi
 from models.VoxelMorph.model import VoxelMorph
-from natsort import natsorted
-from torch.utils.data import DataLoader
 from models.feature_extract.model import FeatureExtract
-
 
 def set_seed(seed):
     random.seed(seed)
@@ -119,7 +119,7 @@ def main(args):
         data_dir = os.path.join("dataset", "ACDC", "database", "training")
         val_set = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
     elif args.dataset == "lung":
-        data_dir = os.path.join("dataset", "4D-Lung-Preprocessed")
+        data_dir = os.path.join("dataset", "4D-Lung_Preprocessed")
         val_set = datasets.LungDataset(data_dir, phase="test", split=split)
     val_loader = DataLoader(
         val_set,

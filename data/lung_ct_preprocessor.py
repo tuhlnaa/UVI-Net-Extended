@@ -15,9 +15,12 @@ import skimage.morphology as morphology
 
 from tqdm import tqdm
 from pathlib import Path
+from functools import partial
 from PIL import Image, ImageDraw
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Union
+from multiprocessing import Pool, cpu_count
+
 
 @dataclass
 class PreprocessingConfig:
@@ -42,23 +45,7 @@ class CTImageProcessor:
         """Normalize CT scan values to [0, 1] range using min-max scaling."""
         min_val, max_val = ct_scan.min(), ct_scan.max()
         return (ct_scan - min_val) / (max_val - min_val)
-
-
-    # def _create_mask(self, image: np.ndarray) -> np.ndarray:
-    #     """Create a binary mask using only scipy."""
-    #     labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
-    #     label_count = np.bincount(labels.ravel().astype(np.int32))
-    #     label_count[0] = 0
-        
-    #     mask = labels == label_count.argmax()
-        
-    #     # Fill holes in each slice
-    #     for i in range(mask.shape[-1]):
-    #         if mask[..., i].sum() > 0:
-    #             mask[..., i] = ndimage.binary_fill_holes(mask[..., i])
-        
-    #     return mask
-
+    
 
     def _create_mask(self, image: np.ndarray) -> np.ndarray:
         """Create a binary mask for the CT image."""
@@ -94,6 +81,21 @@ class CTImageProcessor:
             mask_new[..., i] = np.array(img)
             
         return mask_new
+
+    # def _create_mask(self, image: np.ndarray) -> np.ndarray:
+    #     """Create a binary mask using only scipy."""
+    #     labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
+    #     label_count = np.bincount(labels.ravel().astype(np.int32))
+    #     label_count[0] = 0
+        
+    #     mask = labels == label_count.argmax()
+        
+    #     # Fill holes in each slice
+    #     for i in range(mask.shape[-1]):
+    #         if mask[..., i].sum() > 0:
+    #             mask[..., i] = ndimage.binary_fill_holes(mask[..., i])
+        
+    #     return mask
 
 
     def remove_bed(self, ct_image: np.ndarray) -> np.ndarray:
@@ -172,11 +174,7 @@ class DCMDataset:
     
 
     @staticmethod
-    def resize_volume(
-        image_array: np.ndarray,
-        new_shape: Tuple[int, int, int],
-        rotate: bool = False
-    ) -> np.ndarray:
+    def resize_volume(image_array: np.ndarray,new_shape: Tuple[int, int, int],rotate: bool = False) -> np.ndarray:
         """Resize volume to target shape using trilinear interpolation."""
         with torch.no_grad():
             image_tensor = torch.from_numpy(image_array)[None, None, ...].float()
@@ -190,18 +188,20 @@ class DCMDataset:
 
 
 class LungPreprocessor:
-    """Main class for lung CT preprocessing pipeline."""
+    """Main class for lung CT preprocessing pipeline with multiprocessing support."""
     
     def __init__(
         self,
         config: Optional[PreprocessingConfig] = None,
-        output_dir: Optional[Union[str, Path]] = None
+        output_dir: Optional[Union[str, Path]] = None,
+        n_processes: Optional[int] = None
     ):
         self.config = config or PreprocessingConfig()
         self.output_dir = Path(output_dir) if output_dir else Path("preprocessed_data")
         self.image_processor = CTImageProcessor(self.config)
         self.dcm_dataset = DCMDataset(self.config)
-        
+        self.n_processes = n_processes or max(1, cpu_count() - 1)  # Leave one CPU free
+
 
     def process_scan(self, folder_path: Path) -> np.ndarray:
         """Process a single CT scan through the complete pipeline."""
@@ -225,20 +225,34 @@ class LungPreprocessor:
         image_array = self.image_processor.normalize(image_array)
         
         return image_array
-    
+
 
     def save_nifti(self, image_array: np.ndarray, save_path: Path) -> None:
         """Save processed image as NIfTI file."""
         nib.save(nib.Nifti1Image(image_array, None), save_path)
-    
 
-    def process_dataset(self, raw_folder: Path) -> int:
-        """Process entire dataset of CT scans."""
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        data_count = 0
+
+    def _process_single_scan(self, scan_info: Tuple[Path, Path]) -> bool:
+        """Process a single scan with error handling."""
+        folder_path, save_path = scan_info
+        try:
+            processed_array = self.process_scan(folder_path)
+            self.save_nifti(processed_array, save_path)
+            return True
+        except Exception as e:
+            print(f"Error processing {folder_path}: {str(e)}")
+            return False
         
+        
+    def process_dataset(self, raw_folder: Path) -> int:
+        """Process entire dataset of CT scans using multiprocessing."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Collect all processing tasks
+        processing_tasks = []
         pt_folders = sorted(raw_folder.glob("*_*"))
-        for pt_folder in tqdm(pt_folders, desc="Processing patients"):
+        
+        for pt_folder in pt_folders:
             pt_num = pt_folder.name[:3]
             high_res_scans = sorted(
                 [scan for scan in pt_folder.glob("*-*/")
@@ -255,27 +269,37 @@ class LungPreprocessor:
                 scan_save_dir.mkdir(parents=True, exist_ok=True)
                 
                 for phase_idx, folder_path in enumerate(ct_scan_dirs):
-                    try:
-                        processed_array = self.process_scan(folder_path)
-                        save_path = scan_save_dir / f"ct_{pt_num}_{scan_idx}_frame{phase_idx}.nii.gz"
-                        self.save_nifti(processed_array, save_path)
-                        data_count += 1
-                    except Exception as e:
-                        print(f"Error processing {folder_path}: {str(e)}")
-                        
-        return data_count
+                    save_path = scan_save_dir / f"ct_{pt_num}_{scan_idx}_frame{phase_idx}.nii.gz"
+                    processing_tasks.append((folder_path, save_path))
 
+        # Process tasks in parallel
+        with Pool(processes=self.n_processes) as pool:
+            results = list(tqdm(
+                pool.imap(self._process_single_scan, processing_tasks),
+                total=len(processing_tasks),
+                desc=f"Processing scans using {self.n_processes} processes"
+            ))
+
+        successful_count = sum(1 for result in results if result)
+        return successful_count
 
 def main():
     """Main entry point for preprocessing pipeline."""
     import argparse
     
     parser = argparse.ArgumentParser(description="Preprocess 4D Lung CT scans")
-    parser.add_argument("--raw_folder_dir", type=Path, default=Path("dataset/4D-Lung/"), help="Raw data folder directory")
-    parser.add_argument("--output_dir", type=Path, default=Path("dataset/4D-Lung-Preprocessed/"), help="Output directory for preprocessed data")
+    parser.add_argument("--raw_folder_dir", type=Path, default=Path("dataset/4D-Lung/"), 
+                        help="Raw data folder directory")
+    parser.add_argument("--output_dir", type=Path, default=Path("dataset/4D-Lung-Preprocessed/"), 
+                        help="Output directory for preprocessed data")
+    parser.add_argument("--n_processes", type=int, default=None,
+                        help="Number of processes to use (default: number of CPU cores - 1)")
     args = parser.parse_args()
     
-    preprocessor = LungPreprocessor(output_dir=args.output_dir)
+    preprocessor = LungPreprocessor(
+        output_dir=args.output_dir,
+        n_processes=args.n_processes
+    )
     total_processed = preprocessor.process_dataset(args.raw_folder_dir)
     print(f"Successfully processed {total_processed} samples")
 

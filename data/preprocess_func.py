@@ -1,9 +1,9 @@
-import copy
-
 import cv2
+import copy
 import numpy as np
 import scipy.ndimage as ndimage
 import skimage.morphology as morphology
+
 from PIL import Image, ImageDraw
 
 

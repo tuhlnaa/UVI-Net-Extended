@@ -1,11 +1,12 @@
-from pathlib import Path
-import nibabel as nib
-import numpy as np
-import pydicom
 import torch
+import pydicom
+import numpy as np
+import nibabel as nib
 import torch.nn.functional as F
-from argparse import ArgumentParser
+
 from tqdm import tqdm
+from pathlib import Path
+from argparse import ArgumentParser
 
 from preprocess_func import bed_removal, center_crop, min_max
 

@@ -4,7 +4,7 @@ setlocal
 rem Configuration
 set "FILE1=file1.nii.gz"
 set "DATA_PATH=file2.nii.gz"
-set "OUTPUT_PATH=/comparison_output"
+set "OUTPUT_PATH=./comparison_output"
 
 
 rem Print header

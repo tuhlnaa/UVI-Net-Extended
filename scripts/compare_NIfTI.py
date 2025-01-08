@@ -121,6 +121,8 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
         plt.title('Histogram of Differences')
         plt.xlabel('Difference Value')
         plt.ylabel('Frequency')
+        plt.xlim([-1, 1])
+
         # Add padding to prevent label cutoff
         plt.tight_layout(pad=1.5)
         plt.savefig(os.path.join(output_dir, 'difference_histogram.png'),
@@ -134,11 +136,9 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Compare two NIfTI files')
-    parser.add_argument('file1', help='Path to first NIfTI file')
-    parser.add_argument('file2', help='Path to second NIfTI file')
-    parser.add_argument('--output', default='comparison_output',
-                      help='Output directory for comparison results')
-    
+    parser.add_argument('--file1', help='Path to first NIfTI file')
+    parser.add_argument('--file2', help='Path to second NIfTI file')
+    parser.add_argument('--output', default='comparison_output', help='Output directory for comparison results')
     args = parser.parse_args()
     
     stats = compare_nifti_files(args.file1, args.file2, args.output)

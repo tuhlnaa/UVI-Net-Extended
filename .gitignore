@@ -2,6 +2,7 @@
 runs/*
 output/*
 comparison_results/*
+comparison_output/*
 test_*.py
 scripts/test_*.bat
 

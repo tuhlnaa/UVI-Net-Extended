@@ -1,0 +1,42 @@
+dataset/
+├── ACDC/
+│   └── database/
+│       ├── training/
+│       │   ├── patient001/
+│       │   │   ├── patient001_4d.nii.gz
+│       │   │   ├── patient001_frame01.nii.gz
+│       │   │   ├── patient001_frame01_gt.nii.gz
+│       │   │   ├── patient001_frame12.nii.gz
+│       │   │   ├── patient001_frame12_gt.nii.gz
+│       │   │   ├── MANDATORY_CITATION.md
+│       │   │   └── Info.cfg
+│       │   │
+│       │   ├── patient002/
+│       │   │       :
+│       │   └── patient100/
+│       │
+│       ├── testing/
+│       │   ├── patient101/
+│       │   │       :
+│       │   └── patient150/
+│       └── MANDATORY_CITATION.md
+│
+├── 4D-Lung/
+│   ├── 100_HM10395/
+│   │   ├── 09-15-1997-NA-p4-69351/
+│   │   │             :
+│   │   └── 07-02-2003-NA-p4-14571/
+│   │
+│   ├── 101_HM10395/
+│   │     :
+│   └── 119_HM10395/
+│
+└── 4D-Lung-Preprocessed/
+    ├── 100_0/
+    │   ├── ct_100_0_frame0.nii.gz
+    │   │             :
+    │   └── ct_100_0_frame9.nii.gz
+    │
+    ├── 100_1/
+    │     :
+    └── 119_7/

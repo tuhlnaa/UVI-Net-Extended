@@ -1,0 +1,20 @@
+preprocessing:
+  # Image parameters
+  target_shape: [128, 128, 128]
+  intermediate_shape: [256, 256, 256]
+  window:
+    lower_bound: -1400
+    upper_bound: 200
+  
+  # Processing parameters
+  bed_removal:
+    threshold: -500
+  center_crop:
+    threshold: -500
+
+  # File patterns
+  high_res_pattern: "1.000000"
+  
+paths:
+  raw_data: "D:/Kai/DATA_Set_2/test" # "dataset/4D-Lung/"
+  output: "D:/Kai/DATA_Set_2/test/4D-Lung-Preprocessed" # "dataset/4D-Lung-Preprocessed/"

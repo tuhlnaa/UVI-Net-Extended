@@ -1,0 +1,255 @@
+"""
+Lung CT scan preprocessing module.
+Provides tools for processing and preparing CT scan data for deep learning models.
+"""
+
+import cv2
+import torch
+import pydicom
+
+import numpy as np
+import nibabel as nib
+import torch.nn.functional as F
+import scipy.ndimage as ndimage
+import skimage.morphology as morphology
+
+from tqdm import tqdm
+from pathlib import Path
+from PIL import Image, ImageDraw
+from dataclasses import dataclass
+from typing import Optional, Tuple, List
+
+@dataclass
+class PreprocessingConfig:
+    """Configuration for CT scan preprocessing parameters."""
+    window_range: Tuple[int, int] = (-1400, 200)  # lung window range
+    bed_threshold: float = -500
+    initial_shape: Tuple[int, int, int] = (256, 256, 256)
+    final_shape: Tuple[int, int, int] = (128, 128, 128)
+    dilation_iterations: int = 3
+    dilation_kernel: Tuple[int, int, int] = (3, 3, 3)
+
+
+class CTImageProcessor:
+    """Handles CT image processing operations."""
+    
+    def __init__(self, config: PreprocessingConfig):
+        self.config = config
+    
+
+    @staticmethod
+    def normalize(ct_scan: np.ndarray) -> np.ndarray:
+        """Normalize CT scan using min-max scaling."""
+        return (ct_scan - ct_scan.min()) / (ct_scan.max() - ct_scan.min())
+    
+
+    def _create_mask(self, image: np.ndarray) -> np.ndarray:
+        """Create a binary mask for the CT image."""
+        labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
+        label_count = np.bincount(labels.ravel().astype(np.int32))
+        label_count[0] = 0
+
+        mask = labels == label_count.argmax()
+        mask_new = np.zeros_like(image)
+
+        # Find contour
+        for i in range(mask.shape[-1]):
+            if mask[..., i].sum() == 0:
+                continue
+                
+            contours, _ = cv2.findContours(
+                mask[..., i].astype(np.uint8),
+                cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE
+            )
+            if not contours:
+                continue
+                
+            largest_contour = max(contours, key=cv2.contourArea)
+            points = largest_contour[:, 0, :]
+            
+            img = Image.new("L", mask[..., 0].shape, 0)
+            ImageDraw.Draw(img).polygon(
+                list(zip(points[:, 0], points[:, 1])),
+                outline=0,
+                fill=1
+            )
+            mask_new[..., i] = np.array(img)
+            
+        return mask_new
+
+    def remove_bed(self, ct_image: np.ndarray) -> np.ndarray:
+        """Remove bed from CT scan."""
+        threshold_mask = ct_image > self.config.bed_threshold
+        
+        # Apply multiple mask iterations for refinement
+        refined_mask = threshold_mask
+        for _ in range(3):
+            refined_mask = self._create_mask(refined_mask)
+            
+        # Apply dilation
+        kernel = np.ones(self.config.dilation_kernel)
+        for _ in range(self.config.dilation_iterations):
+            refined_mask = morphology.dilation(refined_mask, kernel)
+            
+        # Apply mask to original image
+        result = np.full_like(ct_image, ct_image.min())
+        result[refined_mask == 1] = ct_image[refined_mask == 1]
+        return result
+    
+    
+    def center_crop(self, img: np.ndarray) -> np.ndarray:
+        """Center crop the CT image based on content."""
+        
+        def find_content_bounds(arr: np.ndarray, axis: int) -> Tuple[int, int]:
+            proj = np.any(arr > self.config.bed_threshold, axis=axis)
+            indices = np.where(proj)[0]
+            return indices[0], indices[-1] if len(indices) > 0 else 0
+        
+        y_start, y_end = find_content_bounds(img, (0, 2))
+        x_start, x_end = find_content_bounds(img, (1, 2))
+        
+        cropped = img[x_start:x_end+1, y_start:y_end+1, :]
+        
+        # Calculate padding
+        pad_x = (img.shape[0] - cropped.shape[0]) // 2
+        pad_y = (img.shape[1] - cropped.shape[1]) // 2
+        
+        padding = (
+            (max(0, pad_x), max(0, img.shape[0] - cropped.shape[0] - pad_x)),
+            (max(0, pad_y), max(0, img.shape[1] - cropped.shape[1] - pad_y)),
+            (0, 0)
+        )
+        
+        return np.pad(cropped, padding, mode="minimum")
+
+
+class DCMDataset:
+    """Handles DICOM dataset operations."""
+    
+    def __init__(self, config: PreprocessingConfig):
+        self.config = config
+    
+
+    @staticmethod
+    def read_dcm_files(folder_path: Path) -> np.ndarray:
+        """Read and stack DICOM files from a directory."""
+        files = sorted(
+            [pydicom.dcmread(f) for f in folder_path.glob("*.dcm")],
+            key=lambda x: int(x.InstanceNumber),
+            reverse=True
+        )
+        return np.stack([f.pixel_array.astype(np.float32) - 1000 for f in files], axis=-1)
+    
+
+    @staticmethod
+    def resize_volume(
+        image_array: np.ndarray,
+        new_shape: Tuple[int, int, int],
+        rotate: bool = False
+    ) -> np.ndarray:
+        """Resize volume to target shape."""
+        with torch.no_grad():
+            image_tensor = torch.from_numpy(image_array)[None, None, ...].float()
+            resized = F.interpolate(image_tensor, new_shape, mode="trilinear")
+            result = resized.squeeze().numpy()
+            
+            if rotate:
+                result = np.stack([np.rot90(result[..., i]) for i in range(result.shape[-1])], axis=-1)
+                
+            return result
+
+
+class LungPreprocessor:
+    """Main class for lung CT preprocessing pipeline."""
+    
+    def __init__(
+        self,
+        config: Optional[PreprocessingConfig] = None,
+        output_dir: Optional[Path] = None
+    ):
+        self.config = config or PreprocessingConfig()
+        self.output_dir = Path(output_dir) if output_dir else Path("preprocessed_data")
+        self.image_processor = CTImageProcessor(self.config)
+        self.dcm_dataset = DCMDataset(self.config)
+        
+
+    def process_scan(self, folder_path: Path) -> np.ndarray:
+        """Process a single CT scan."""
+        image_array = self.dcm_dataset.read_dcm_files(folder_path)
+        
+        # Two-step resizing with rotation
+        image_array = self.dcm_dataset.resize_volume(
+            image_array, self.config.initial_shape, rotate=True
+        )
+        image_array = self.dcm_dataset.resize_volume(
+            image_array, self.config.final_shape, rotate=False
+        )
+        
+        # Apply window range
+        lower, upper = self.config.window_range
+        image_array = np.clip(image_array, lower, upper)
+        
+        # Process image
+        image_array = self.image_processor.remove_bed(image_array)
+        image_array = self.image_processor.center_crop(image_array)
+        image_array = self.image_processor.normalize(image_array)
+        
+        return image_array
+    
+
+    def save_nifti(self, image_array: np.ndarray, save_path: Path) -> None:
+        """Save processed image as NIfTI file."""
+        nib.save(nib.Nifti1Image(image_array, None), save_path)
+    
+
+    def process_dataset(self, raw_folder: Path) -> int:
+        """Process entire dataset of CT scans."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        data_count = 0
+        
+        pt_folders = sorted(raw_folder.glob("*_*"))
+        for pt_folder in tqdm(pt_folders, desc="Processing patients"):
+            pt_num = pt_folder.name[:3]
+            high_res_scans = sorted(
+                [scan for scan in pt_folder.glob("*-*/")
+                 if next(scan.iterdir()).name[:8] == "1.000000"]
+            )
+            
+            for scan_idx, scan_folder in enumerate(high_res_scans):
+                ct_scan_dirs = sorted(
+                    [scan for scan in scan_folder.glob("*-*")
+                     if len(list(scan.iterdir())) > 10]
+                )
+                
+                scan_save_dir = self.output_dir / f"{pt_num}_{scan_idx}"
+                scan_save_dir.mkdir(parents=True, exist_ok=True)
+                
+                for phase_idx, folder_path in enumerate(ct_scan_dirs):
+                    try:
+                        processed_array = self.process_scan(folder_path)
+                        save_path = scan_save_dir / f"ct_{pt_num}_{scan_idx}_frame{phase_idx}.nii.gz"
+                        self.save_nifti(processed_array, save_path)
+                        data_count += 1
+                    except Exception as e:
+                        print(f"Error processing {folder_path}: {str(e)}")
+                        
+        return data_count
+
+
+def main():
+    """Main entry point for preprocessing pipeline."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Preprocess 4D Lung CT scans")
+    parser.add_argument("--raw_folder_dir", type=Path, default=Path("dataset/4D-Lung/"), help="Raw data folder directory")
+    parser.add_argument("--output_dir", type=Path, default=Path("dataset/4D-Lung-Preprocessed/"), help="Output directory for preprocessed data")
+    args = parser.parse_args()
+    
+    preprocessor = LungPreprocessor(output_dir=args.output_dir)
+    total_processed = preprocessor.process_dataset(args.raw_folder_dir)
+    print(f"Successfully processed {total_processed} samples")
+
+
+if __name__ == "__main__":
+    main()

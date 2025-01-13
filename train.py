@@ -1,4 +1,6 @@
 import os
+os.environ["VXM_BACKEND"] = "pytorch"
+
 import random
 from argparse import ArgumentParser
 
@@ -16,7 +18,7 @@ from utils import datasets, utils
 from models.UNet.model import Unet3D, Unet3D_multi
 from models.VoxelMorph.model import VoxelMorph
 from models.feature_extract.model import FeatureExtract
-
+import voxelmorph as vxm
 
 def set_seed(seed):
     random.seed(seed)
@@ -43,7 +45,26 @@ def main(args):
     """
     Initialize model
     """
-    flow_model = VoxelMorph(img_size).cuda()
+
+    # configure unet features
+    nb_features = [
+        [16, 32, 32, 32],             # encoder features
+        [32, 32, 32, 32, 32, 16, 16]  # decoder features
+    ]
+    inshape = [128, 128, 128]
+
+    # build model
+    flow_model = vxm.networks.VxmDense(
+        inshape=inshape,
+        nb_unet_features=nb_features,
+        src_feats=1,    # number of source image features
+        trg_feats=1,    # number of target image features
+        bidir=True,     # enable bidirectional registration
+        int_steps=0,    # disable integration steps to get raw flow fields
+        int_downsize=1  # prevent downsampling of flow field
+    ).cuda()
+    #flow_model = VoxelMorph(img_size).cuda()
+
     if args.feature_extract:
         refinement_model = Unet3D_multi(img_size).cuda()
     else:
@@ -77,14 +98,14 @@ def main(args):
         train_set,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=0,
         pin_memory=False,
     )
     val_loader = DataLoader(
         val_set,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=4,
+        num_workers=0,
         pin_memory=False,
         drop_last=True,
     )
@@ -139,7 +160,16 @@ def main(args):
             alpha3 = random.uniform(1.0, 1.5)
 
             i0_i1 = torch.cat((i0, i1), dim=1)
-            i_0_1, i_1_0, flow_0_1, flow_1_0 = flow_model(i0_i1)
+            source, target = i0_i1[:, 0:1], i0_i1[:, 1:2]
+
+            #i_0_1, i_1_0, flow_0_1, flow_1_0 = flow_model(i0_i1)
+            y_source, y_target, flow_field = flow_model(source, target)
+
+            # The flow field will be full size and include both directions
+            flow_0_1 = flow_field[:, :3]  # first 3 channels
+            flow_1_0 = -flow_field[:, :3]  # same magnitude, opposite direction
+            i_0_1 = y_source
+            i_1_0 = y_target
 
             loss_ncc_1 = criterion_ncc(i_0_1, i1) * args.weight_ncc
             loss_cha_1 = criterion_cha(i_0_1, i1, eps=epsilon) * args.weight_cha
@@ -191,10 +221,29 @@ def main(args):
             Second Interpolation
             """
             ia1_ia2 = torch.cat((i_0_a1, i_unknown_a2), dim=1)
-            ia2_ia3 = torch.cat((i_unknown_a2, i_1_a3), dim=1)
+            source, target = ia1_ia2[:, 0:1], ia1_ia2[:, 1:2]
 
-            _, _, flow_a1_a2, flow_a2_a1 = flow_model(ia1_ia2)
-            _, _, flow_a2_a3, flow_a3_a2 = flow_model(ia2_ia3)
+            #_, _, flow_a1_a2, flow_a2_a1 = flow_model(ia1_ia2)
+            y_source, y_target, flow_field = flow_model(source, target)
+
+            # The flow field will be full size and include both directions
+            flow_a1_a2 = flow_field[:, :3]  # first 3 channels
+            flow_a2_a1 = -flow_field[:, :3]  # same magnitude, opposite direction
+            _ = y_source
+            _ = y_target
+
+            ia2_ia3 = torch.cat((i_unknown_a2, i_1_a3), dim=1)
+            source, target = ia2_ia3[:, 0:1], ia2_ia3[:, 1:2]
+
+            #_, _, flow_a2_a3, flow_a3_a2 = flow_model(ia2_ia3)
+            y_source, y_target, flow_field = flow_model(source, target)
+
+            # The flow field will be full size and include both directions
+            flow_a2_a3 = flow_field[:, :3]  # first 3 channels
+            flow_a3_a2 = -flow_field[:, :3]  # same magnitude, opposite direction
+            _ = y_source
+            _ = y_target
+
 
             alpha12 = (0 - alpha1) / (alpha2 - alpha1)
             alpha23 = (1 - alpha2) / (alpha3 - alpha2)
@@ -322,43 +371,53 @@ def main(args):
         """
         Validation
         """
-        if (epoch == 0) or ((epoch + 1) % 50 == 0):
-            eval_ncc = utils.AverageMeter()
-            with torch.no_grad():
-                for data in val_loader:
-                    flow_model.eval()
-                    refinement_model.eval()
-                    data = [t.cuda() for t in data]
-                    i0 = data[0]
-                    i1 = data[1]
+        #if (epoch == 0) or ((epoch + 1) % 50 == 0):
+        eval_ncc = utils.AverageMeter()
+        with torch.no_grad():
+            for data in val_loader:
+                flow_model.eval()
+                refinement_model.eval()
+                data = [t.cuda() for t in data]
+                i0 = data[0]
+                i1 = data[1]
 
-                    i0_i1 = torch.cat((i0, i1), dim=1)
+                i0_i1 = torch.cat((i0, i1), dim=1)
+                source, target = i0_i1[:, 0:1], i0_i1[:, 1:2]
+                
+                #_, _, flow_0_1, _ = flow_model(i0_i1)
+                y_source, y_target, flow_field = flow_model(source, target)
 
-                    _, _, flow_0_1, _ = flow_model(i0_i1)
+                # The flow field will be full size and include both directions
+                flow_0_1 = flow_field[:, :3]  # first 3 channels
+                _ = -flow_field[:, :3]  # same magnitude, opposite direction
+                _ = y_source
+                _ = y_target
 
-                    i_0_1 = reg_model_bilin([i0, flow_0_1.float()])
+                i_0_1 = reg_model_bilin([i0, flow_0_1.float()])
 
-                    ncc = -1 * criterion_ncc(i_0_1, i1)
-                    eval_ncc.update(ncc.item(), i0.size(0))
+                ncc = -1 * criterion_ncc(i_0_1, i1)
+                eval_ncc.update(ncc.item(), i0.size(0))
 
-            print("Epoch {}, NCC {:.5f}\n".format(epoch, eval_ncc.avg), flush=True)
+        print("Epoch {}, NCC {:.5f}\n".format(epoch, eval_ncc.avg), flush=True)
+        wandb.log({"Validate/NCC": eval_ncc.avg}, step=epoch)
 
-            if eval_ncc.avg > best_ncc:
-                best_ncc = eval_ncc.avg
+        if eval_ncc.avg > best_ncc:
+            best_ncc = eval_ncc.avg
 
-            torch.save(
-                {
-                    "epoch": epoch + 1,
-                    "flow_model_state_dict": flow_model.state_dict(),
-                    "model_state_dict": refinement_model.state_dict(),
-                    "feature_model_state_dict": feature_model.state_dict() if args.feature_extract else None,
-                    "best_ncc": best_ncc,
-                    "optimizer": optimizer.state_dict(),
-                },
-                "experiments/{}/epoch{}_ncc{:.4f}.ckpt".format(args.dataset, epoch + 1, eval_ncc.avg),
-            )
+        
+        torch.save(
+            {
+                "epoch": epoch + 1,
+                "flow_model_state_dict": flow_model.state_dict(),
+                "model_state_dict": refinement_model.state_dict(),
+                "feature_model_state_dict": feature_model.state_dict() if args.feature_extract else None,
+                "best_ncc": best_ncc,
+                "optimizer": optimizer.state_dict(),
+            },
+            "experiments/{}/epoch{}_ncc{:.4f}.ckpt".format(args.dataset, epoch + 1, eval_ncc.avg),
+        )
 
-            wandb.log({"Validate/NCC": eval_ncc.avg}, step=epoch)
+            
 
         loss_all.reset()
         loss_all_full.reset()

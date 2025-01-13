@@ -1,12 +1,14 @@
 # Test file
 runs/*
 output/*
+wandb/*
 dataset/*
-comparison_results/*
+experiments/*
 comparison_output/*
-test_*.py
-scripts/test_*.bat
 
+test_*.py
+test_*.txt
+scripts/test_*.bat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,6 +1,7 @@
 UVI-Net-Extended/
 │
 ├── configs/
+│   └── preprocessing_config.yaml
 │
 ├── data/
 │   ├── lung_preprocess.py
@@ -15,5 +16,8 @@ UVI-Net-Extended/
 ├── models/
 │
 ├── scripts/
+│   ├── compare_nifti.bat
+│   └── preprocess_lung_ct.bat
 │
 └── utils/
+    └── compare_nifti.py

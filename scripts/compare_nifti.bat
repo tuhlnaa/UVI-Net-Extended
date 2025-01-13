@@ -13,7 +13,7 @@ echo Starting execution at %date% %time%
 
 rem Execute the comparison script
 echo [EXECUTING] Starting comparison script...
-python compare_nifti.py ^
+python utils/compare_nifti.py ^
     --file1 "%FILE1%" ^
     --file2 "%FILE2%" ^
     --output "%OUTPUT_PATH%"

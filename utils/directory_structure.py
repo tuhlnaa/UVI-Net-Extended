@@ -63,7 +63,8 @@ def generate_tree(
 def main():
     """Main function to demonstrate usage."""
     root_directory = "."  # Current directory
-    exclude_patterns = {'__pycache__', '.git', '.vscode', 'node_modules', 'assets'}
+    exclude_patterns = {'__pycache__', '.git', '.vscode', 'node_modules', 'assets', 
+                        "dataset", "experiments", "wandb"}
    
     try:
         # Generate tree without emoji

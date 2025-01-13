@@ -20,7 +20,10 @@ class ACDCHeartDataset(Dataset):
         self.path = data_path
         self.fine_size = (128, 128, 32)
         if phase == "train":
-            self.paths = sorted(os.listdir(self.path))[1 : split + 1]
+            #self.paths = sorted(os.listdir(self.path))[1 : split + 1]
+            self.path = self.path+"\\training"
+            self.paths = sorted(os.listdir(self.path))
+            #print(sorted(os.listdir(self.path+"\\training")))
         elif phase == "test":
             self.paths = sorted(os.listdir(self.path))[split + 1 :]
 
@@ -31,12 +34,12 @@ class ACDCHeartDataset(Dataset):
             ES = int(f.readline().strip().split()[-1])
 
         ED_image = nib.load(
-            f"{patient_folder}/{self.paths[index]}_frame{ED:02d}.nii.gz"
+            f"{patient_folder}/{self.paths[index]}_frame{ED:02d}.nii"
         ).get_fdata()
         ES_image = nib.load(
-            f"{patient_folder}/{self.paths[index]}_frame{ES:02d}.nii.gz"
+            f"{patient_folder}/{self.paths[index]}_frame{ES:02d}.nii"
         ).get_fdata()
-        video = nib.load(f"{patient_folder}/{self.paths[index]}_4d.nii.gz").get_fdata()
+        video = nib.load(f"{patient_folder}/{self.paths[index]}_4d.nii").get_fdata()
 
         nh, nw, nd = ED_image.shape
         fh, fw, fd = self.fine_size

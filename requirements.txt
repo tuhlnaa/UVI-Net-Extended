@@ -6,6 +6,10 @@ scipy
 tqdm
 lpips
 natsort
+
+git+https://github.com/adalca/neurite.git@40c6d0e
+git+https://github.com/voxelmorph/voxelmorph.git@375a149
+
 pystrum # !!
 # torch
 

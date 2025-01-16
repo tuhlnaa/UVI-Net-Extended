@@ -23,7 +23,7 @@ if not exist "%WEBP_OUTPUT_DIR%" mkdir "%WEBP_OUTPUT_DIR%"
 
 rem Generate WebP animation from Lung frames
 echo Processing Lung Dataset (Respiratory Motion)...
-python utils\create_webp.py ^
+python utils\create_animation.py ^
     --input_dir "%LUNG_FRAMES_DIR%" ^
     --output_path "%WEBP_OUTPUT_DIR%\lung_animation.webp" ^
     --duration %RESPIRATORY_DURATION% ^
@@ -31,7 +31,7 @@ python utils\create_webp.py ^
 
 rem Generate WebP animation from ACDC frames
 echo Processing ACDC Dataset (Cardiac Motion)...
-python utils\create_webp.py ^
+python utils\create_animation.py ^
     --input_dir "%ACDC_FRAMES_DIR%" ^
     --output_path "%WEBP_OUTPUT_DIR%\cardiac_animation.webp" ^
     --duration %CARDIAC_DURATION% ^

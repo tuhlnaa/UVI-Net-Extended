@@ -1,6 +1,7 @@
 import copy
 import glob
 import os
+from pathlib import Path
 import pickle
 import random
 
@@ -17,18 +18,21 @@ def pkload(fname):
 
 class ACDCHeartDataset(Dataset):
     def __init__(self, data_path, phase="Train", split=90):
-        self.path = data_path
+        self.path = Path(data_path)
         self.fine_size = (128, 128, 32)
+
         if phase == "train":
             #self.paths = sorted(os.listdir(self.path))[1 : split + 1]
-            self.path = self.path+"\\training"
+            self.path = self.path / "training"
             self.paths = sorted(os.listdir(self.path))
             #print(sorted(os.listdir(self.path+"\\training")))
         elif phase == "test":
             self.paths = sorted(os.listdir(self.path))[split + 1 :]
 
+
     def __getitem__(self, index):
         patient_folder = os.path.join(self.path, self.paths[index])
+
         with open(f"{patient_folder}/Info.cfg", "rt") as f:
             ED = int(f.readline().strip().split()[-1])
             ES = int(f.readline().strip().split()[-1])

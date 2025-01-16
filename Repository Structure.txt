@@ -4,6 +4,7 @@ UVI-Net-Extended/
 │   └── preprocessing_config.yaml
 │
 ├── data/
+│   ├──datasets.py
 │   ├── lung_preprocess.py
 │   └── preprocess_func.py
 │
@@ -17,7 +18,21 @@ UVI-Net-Extended/
 │
 ├── scripts/
 │   ├── compare_nifti.bat
+│   ├── generate_animation.bat
+│   ├── generate_frame_views.bat
 │   └── preprocess_lung_ct.bat
 │
-└── utils/
-    └── compare_nifti.py
+├── test/
+│   ├── benchmark_gradient_loss.py
+│   ├── dataset_usage.py
+│   └── gradient_loss.py
+│ 
+├── utils/
+│   ├── compare_nifti.py
+│   ├── create_animation.py
+│   ├── directory_structure.py
+│   ├── generate_frames.py
+│   ├── print_model_VoxelMorph.py
+│   └── visualize_vxm_architecture.py
+│
+└── train.py

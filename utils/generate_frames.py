@@ -4,44 +4,6 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# def plot_middle_slices(data, output_path, frame_num, color='gray', vmin=0, vmax=1):
-#     """
-#     Plot middle slices in all three orientations for a given frame
-    
-#     Args:
-#         data (numpy.ndarray): 3D array containing the image data
-#         output_path (str or Path): Directory to save the output PNG
-#         frame_num (int): Frame number for file naming
-#     """
-#     mid_x = data.shape[0] // 2
-#     mid_y = data.shape[1] // 2
-#     mid_z = data.shape[2] // 2
-    
-#     fig = plt.figure(figsize=(15, 4))
-#     plt.subplots_adjust(wspace=0.4)
-    
-#     ax1 = plt.subplot(131)
-#     ax2 = plt.subplot(132)
-#     ax3 = plt.subplot(133)
-    
-#     im1 = ax1.imshow(data[mid_x, :, :], cmap=color, vmin=vmin, vmax=vmax)
-#     plt.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
-#     ax1.set_title('Sagittal')
-    
-#     im2 = ax2.imshow(data[:, mid_y, :], cmap=color, vmin=vmin, vmax=vmax)
-#     plt.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
-#     ax2.set_title('Coronal')
-    
-#     im3 = ax3.imshow(data[:, :, mid_z], cmap=color, vmin=vmin, vmax=vmax)
-#     plt.colorbar(im3, ax=ax3, fraction=0.046, pad=0.04)
-#     ax3.set_title('Axial')
-    
-#     plt.suptitle(f'Frame {frame_num:02d}', y=1.05)
-    
-#     output_file = os.path.join(output_path, f'frame_{frame_num:02d}.png')
-#     plt.savefig(output_file, bbox_inches='tight', dpi=300, pad_inches=0.1)
-#     plt.close()
-
 def plot_middle_slices(data, output_path, frame_num, color='gray', vmin=0, vmax=1):
     """
     Plot middle slices in all three orientations for a given frame, rotated 90 degrees left

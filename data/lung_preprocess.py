@@ -1,3 +1,15 @@
+"""
+HU = pixel_value * rescale_slope + rescale_intercept
+
+In many CT scanners, including Philips systems (Philips Brilliance Big Bore CT scanner), the default rescale slope is 1 and the rescale intercept is -1000. 
+This means that to convert the stored pixel values to actual HU values, you need to subtract 1000.
+
+This adjustment ensures that:
+- Air (which should be -1000 HU) is correctly represented
+- Water (which should be 0 HU) is correctly represented
+- Other tissue densities are properly scaled in HU
+"""
+
 import torch
 import pydicom
 import numpy as np
@@ -27,6 +39,7 @@ def read_dcm_files(folder_path: Path):
 
     return image_array
 
+
 def resize_image(image_array, new_shape=(128, 128, 128), rot90=False):
     image_tensor = torch.from_numpy(image_array)[None, None, ...].float()
     image_tensor = F.interpolate(image_tensor, new_shape, mode="trilinear")
@@ -39,6 +52,7 @@ def resize_image(image_array, new_shape=(128, 128, 128), rot90=False):
                 image_array[..., i], k=1
             )  # Rotate by 90 degrees
     return image_array
+
 
 def main(args):
     raw_folder = Path(args.raw_folder_dir)
@@ -87,20 +101,20 @@ def main(args):
 
     print(f"A total of {data_count} samples are created")
 
+
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(
-        "--raw_folder_dir",
-        type=str,
-        default="dataset/4D-Lung/",
-        help="designate the downloaded raw data folder directory",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="dataset/4D-Lung_Preprocessed/",
-        help="output directory for saving the preprocessed outcomes",
-    )
+    parser.add_argument("--raw_folder_dir", type=str, default="dataset/4D-Lung/", help="designate the downloaded raw data folder directory")
+    parser.add_argument("--output_dir", type=str, default="dataset/4D-Lung_Preprocessed/", help="output directory for saving the preprocessed outcomes")
     args = parser.parse_args()
     
     main(args)
+
+"""
+This study employed a comprehensive preprocessing pipeline for 4D lung CT scan data, implemented using Python 3.x with several key dependencies including OpenCV, PyTorch, PyDICOM, and NiBabel. The raw data consisted of DICOM files organized hierarchically by patient identifier, scan date, and phase sequence. Only high-resolution scans (identified by the prefix "1.000000") containing more than 10 frames were selected for processing.
+The preprocessing pipeline began with DICOM file reading, where individual slices were sorted by their instance numbers and stacked into a 3D array. During this process, pixel values were converted to Hounsfield Units (HU) by applying an offset of -1000 to mitigate automatic rescaling effects. The image volumes underwent a two-stage resizing process using trilinear interpolation: first to 256×256×256 voxels (with a 90-degree rotation applied to each slice), then to a final size of 128×128×128 voxels.
+To enhance lung tissue visualization, we applied window adjustment by clipping CT values to a lung window range between -1400 HU (lower bound) and 200 HU (upper bound). The CT bed was removed through a sequence of morphological operations. This process involved initial thresholding at -500 HU, followed by three iterations of mask generation. Each mask generation step included connected component labeling, identification of the largest component, contour finding, and polygon filling. The resulting mask underwent three rounds of 3×3×3 morphological dilation to ensure complete coverage of the subject anatomy.
+Center cropping was performed by identifying the subject boundaries using a -500 HU threshold along both anatomical axes. The image was cropped to these boundaries and padded symmetrically with minimum values to maintain the original dimensions. Finally, min-max normalization was applied to scale all values between 0 and 1, facilitating subsequent processing steps.
+The preprocessed images were saved as compressed NIfTI files (.nii.gz) with a standardized naming convention: "ct_PTxxx_y_framez.nii.gz", where PTxxx represents the patient identifier, y indicates the scan index, and z denotes the phase index in the 4D sequence. This naming scheme ensures proper organization and easy retrieval of temporal sequences.
+
+"""

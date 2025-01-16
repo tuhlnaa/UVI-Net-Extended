@@ -20,10 +20,10 @@ flow_model = vxm.networks.VxmDense(
     bidir=True,     # enable bidirectional registration
     int_steps=0,    # disable integration steps to get raw flow fields
     int_downsize=1  # prevent downsampling of flow field
-).to("cuda")
+)#.to("cuda")
 
 # Test with random input
-x = torch.randn(1, 2, 128, 128, 128).to("cuda")
+x = torch.randn(1, 2, 128, 128, 128)#.to("cuda")
 source, target = x[:, 0:1], x[:, 1:2]
 
 # During training mode

@@ -54,16 +54,29 @@ def main(args):
     inshape = [128, 128, 128]
 
     # build model
-    flow_model = vxm.networks.VxmDense(
-        inshape=inshape,
-        nb_unet_features=nb_features,
-        src_feats=1,    # number of source image features
-        trg_feats=1,    # number of target image features
-        bidir=True,     # enable bidirectional registration
-        int_steps=0,    # disable integration steps to get raw flow fields
-        int_downsize=1  # prevent downsampling of flow field
-    ).cuda()
-    #flow_model = VoxelMorph(img_size).cuda()
+    # flow_model = vxm.networks.VxmDense(
+    #     inshape=inshape,
+    #     nb_unet_features=nb_features,
+    #     src_feats=1,    # number of source image features
+    #     trg_feats=1,    # number of target image features
+    #     bidir=True,     # enable bidirectional registration
+    #     int_steps=0,    # disable integration steps to get raw flow fields
+    #     int_downsize=1  # prevent downsampling of flow field
+    # ).cuda()
+
+    # 原始
+    # flow_model = vxm.networks.VxmDense(
+    #     inshape=inshape,
+    #     nb_unet_features=nb_features,
+    #     src_feats=1,
+    #     trg_feats=1,
+    #     bidir=True,
+    #     int_steps=0,              # Disable integration steps
+    #     int_downsize=1,           # Disable downsampling
+    #     nb_unet_conv_per_level=1  # Match original conv layers per level
+    # ).cuda()
+
+    flow_model = VoxelMorph(img_size).cuda()
 
     if args.feature_extract:
         refinement_model = Unet3D_multi(img_size).cuda()
@@ -162,14 +175,14 @@ def main(args):
             i0_i1 = torch.cat((i0, i1), dim=1)
             source, target = i0_i1[:, 0:1], i0_i1[:, 1:2]
 
-            #i_0_1, i_1_0, flow_0_1, flow_1_0 = flow_model(i0_i1)
-            y_source, y_target, flow_field = flow_model(source, target)
+            i_0_1, i_1_0, flow_0_1, flow_1_0 = flow_model(i0_i1)
 
-            # The flow field will be full size and include both directions
-            flow_0_1 = flow_field[:, :3]  # first 3 channels
-            flow_1_0 = -flow_field[:, :3]  # same magnitude, opposite direction
-            i_0_1 = y_source
-            i_1_0 = y_target
+            # y_source, y_target, flow_field = flow_model(source, target)
+            # # The flow field will be full size and include both directions
+            # flow_0_1 = flow_field[:, :3]  # first 3 channels
+            # flow_1_0 = -flow_field[:, :3]  # same magnitude, opposite direction
+            # i_0_1 = y_source
+            # i_1_0 = y_target
 
             loss_ncc_1 = criterion_ncc(i_0_1, i1) * args.weight_ncc
             loss_cha_1 = criterion_cha(i_0_1, i1, eps=epsilon) * args.weight_cha
@@ -223,26 +236,26 @@ def main(args):
             ia1_ia2 = torch.cat((i_0_a1, i_unknown_a2), dim=1)
             source, target = ia1_ia2[:, 0:1], ia1_ia2[:, 1:2]
 
-            #_, _, flow_a1_a2, flow_a2_a1 = flow_model(ia1_ia2)
-            y_source, y_target, flow_field = flow_model(source, target)
+            _, _, flow_a1_a2, flow_a2_a1 = flow_model(ia1_ia2)
 
-            # The flow field will be full size and include both directions
-            flow_a1_a2 = flow_field[:, :3]  # first 3 channels
-            flow_a2_a1 = -flow_field[:, :3]  # same magnitude, opposite direction
-            _ = y_source
-            _ = y_target
+            # y_source, y_target, flow_field = flow_model(source, target)
+            # # The flow field will be full size and include both directions
+            # flow_a1_a2 = flow_field[:, :3]  # first 3 channels
+            # flow_a2_a1 = -flow_field[:, :3]  # same magnitude, opposite direction
+            # _ = y_source
+            # _ = y_target
 
             ia2_ia3 = torch.cat((i_unknown_a2, i_1_a3), dim=1)
             source, target = ia2_ia3[:, 0:1], ia2_ia3[:, 1:2]
 
-            #_, _, flow_a2_a3, flow_a3_a2 = flow_model(ia2_ia3)
-            y_source, y_target, flow_field = flow_model(source, target)
+            _, _, flow_a2_a3, flow_a3_a2 = flow_model(ia2_ia3)
 
-            # The flow field will be full size and include both directions
-            flow_a2_a3 = flow_field[:, :3]  # first 3 channels
-            flow_a3_a2 = -flow_field[:, :3]  # same magnitude, opposite direction
-            _ = y_source
-            _ = y_target
+            # y_source, y_target, flow_field = flow_model(source, target)
+            # # The flow field will be full size and include both directions
+            # flow_a2_a3 = flow_field[:, :3]  # first 3 channels
+            # flow_a3_a2 = -flow_field[:, :3]  # same magnitude, opposite direction
+            # _ = y_source
+            # _ = y_target
 
 
             alpha12 = (0 - alpha1) / (alpha2 - alpha1)
@@ -384,14 +397,14 @@ def main(args):
                 i0_i1 = torch.cat((i0, i1), dim=1)
                 source, target = i0_i1[:, 0:1], i0_i1[:, 1:2]
                 
-                #_, _, flow_0_1, _ = flow_model(i0_i1)
-                y_source, y_target, flow_field = flow_model(source, target)
+                _, _, flow_0_1, _ = flow_model(i0_i1)
 
-                # The flow field will be full size and include both directions
-                flow_0_1 = flow_field[:, :3]  # first 3 channels
-                _ = -flow_field[:, :3]  # same magnitude, opposite direction
-                _ = y_source
-                _ = y_target
+                # y_source, y_target, flow_field = flow_model(source, target)
+                # # The flow field will be full size and include both directions
+                # flow_0_1 = flow_field[:, :3]  # first 3 channels
+                # _ = -flow_field[:, :3]  # same magnitude, opposite direction
+                # _ = y_source
+                # _ = y_target
 
                 i_0_1 = reg_model_bilin([i0, flow_0_1.float()])
 

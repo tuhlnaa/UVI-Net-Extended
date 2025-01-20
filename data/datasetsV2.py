@@ -97,6 +97,9 @@ class ACDCHeartDataset(BaseMedicalDataset):
         """Initialize ACDC Heart Dataset."""
         if phase == "train":
             data_path = Path(data_path) / "training"
+        elif phase == "val":
+            data_path = Path(data_path) / "testing"
+        print(data_path)
         super().__init__(data_path, phase, split, image_size)
 
 

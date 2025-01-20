@@ -23,7 +23,7 @@ class ACDCHeartDataset(Dataset):
 
         if phase == "train":
             #self.paths = sorted(os.listdir(self.path))[1 : split + 1]
-            self.path = self.path / "training"
+            #self.path = self.path / "training"
             self.paths = sorted(os.listdir(self.path))
             #print(sorted(os.listdir(self.path+"\\training")))
         elif phase == "test":

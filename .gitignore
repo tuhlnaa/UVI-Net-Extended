@@ -1,6 +1,7 @@
 # Test file
 runs/*
 output/*
+outputs/*
 wandb/*
 dataset/*
 experiments/*

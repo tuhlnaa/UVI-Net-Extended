@@ -18,6 +18,7 @@ class ConvBlock(nn.Module):
         self.activation = nn.LeakyReLU(0.2)
 
     def forward(self, x):
+        print('bbbbb:', x.shape)
         out = self.main(x)
         out = self.activation(out)
         return out

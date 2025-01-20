@@ -1,8 +1,4 @@
 import sys
-import torch
-import random
-import numpy as np
-
 from pathlib import Path
 from torch.utils.data import DataLoader
 
@@ -24,11 +20,18 @@ def acdc_data(path):
         image_size=(128, 128, 32)
     )
 
+    # dataset = ACDCHeartDataset(
+    #     data_path=data_path,
+    #     phase="val",
+    #     split=90,
+    #     image_size=(128, 128, 32)
+    # )
+
     # Create data loader
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=True,
+        #shuffle=True,
         num_workers=num_workers,
         pin_memory=True
     )
@@ -66,30 +69,19 @@ def lung_data(path):
         split=68,
         image_size=(128, 128, 128)
     )
-    
+
     # Create data loader
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=True,
+        drop_last=True,
     )
 
     print(f"Dataset size: {len(dataset)} samples")
     print(f"Number of batches: {len(data_loader)}\n")
-
-    for idx, data in enumerate(data_loader):
-        print(len(data))
-
-        data = [t.cuda() for t in data]
-        print(len(data))
-        i0 = data[0]
-        i1 = data[1]
-        print(i0.shape, i1.shape)
-        i0_i1 = torch.cat((i0, i1), dim=1)
-        print(i0_i1.shape)
-        quit()
 
     # Iterate through a few batches
     for batch_idx, (ed_image, es_image, ed_frame, es_frame, video) in enumerate(data_loader):
@@ -110,7 +102,7 @@ def lung_data(path):
 
 if __name__ == "__main__":
     acdc_data(r"D:\Kai\DATA_Set_2\ACDC_database")
-    lung_data(r"D:\Kai\DATA_Set_2\4D-Lung_Preprocessed")
+    #lung_data(r"D:\Kai\DATA_Set_2\4D-Lung_Preprocessed")
 
 """
 Dataset size: 90 samples

@@ -13,9 +13,16 @@ def acdc_data(path):
     num_workers = 0
 
     # Initialize dataset
+    # dataset = ACDCHeartDataset(
+    #     data_path=data_path,
+    #     phase="train",
+    #     split=90,
+    #     image_size=(128, 128, 32)
+    # )
+
     dataset = ACDCHeartDataset(
         data_path=data_path,
-        phase="train",
+        phase="val",
         split=90,
         image_size=(128, 128, 32)
     )

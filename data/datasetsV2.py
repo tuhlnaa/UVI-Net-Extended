@@ -85,7 +85,6 @@ class BaseMedicalDataset(Dataset):
 class ACDCHeartDataset(BaseMedicalDataset):
     """ACDC Heart Dataset loader."""
 
-<<<<<<< HEAD
     def _get_paths(self) -> List[Path]:
         """Get paths for ACDC dataset based on phase."""
         # Handle training and testing directories
@@ -99,22 +98,6 @@ class ACDCHeartDataset(BaseMedicalDataset):
             
         # Get all patient directories
         all_paths = sorted([p for p in base_path.iterdir() if p.is_dir()])
-=======
-    def __init__(
-        self,
-        data_path: str | Path,
-        phase: str = "train",
-        split: int = 90,
-        image_size: Tuple[int, int, int] = (128, 128, 32)
-    ) -> None:
-        """Initialize ACDC Heart Dataset."""
-        if phase == "train":
-            data_path = Path(data_path) / "training"
-        elif phase == "val":
-            data_path = Path(data_path) / "testing"
-        print(data_path)
-        super().__init__(data_path, phase, split, image_size)
->>>>>>> origin/main
 
         return all_paths
     

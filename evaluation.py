@@ -141,69 +141,52 @@ def main(args):
 
     for data_idx, data in enumerate(val_loader):
         data = [t.cuda() for t in data]
-        i0 = data[0]
-        i1 = data[1]
-        idx0, idx1 = data[2], data[3]
+        image0 = data[0]
+        image1 = data[1]
+        image0_frame, image1_frame = data[2], data[3]
         video = data[4]
 
-        i0_i1 = torch.cat((i0, i1), dim=1)
-        _, _, flow_0_1, flow_1_0 = flow_model(i0_i1)
+        image0_image1 = torch.cat((image0, image1), dim=1)
+        _, _, flow_0_1, flow_1_0 = flow_model(image0_image1)
 
-        for i in range(idx0 + 1, idx1):
-            alpha = (i - idx0) / (idx1 - idx0)
+        for i in range(image0_frame + 1, image1_frame):
+            alpha = (i - image0_frame) / (image1_frame - image0_frame)
 
             flow_0_alpha = flow_0_1 * alpha
             flow_1_alpha = flow_1_0 * (1 - alpha)
 
-            i_0_alpha = reg_model_bilin([i0, flow_0_alpha.float()])
-            i_1_alpha = reg_model_bilin([i1, flow_1_alpha.float()])
+            image_0_alpha = reg_model_bilin([image0, flow_0_alpha.float()])
+            image_1_alpha = reg_model_bilin([image1, flow_1_alpha.float()])
 
-            i_alpha_combined = (1 - alpha) * i_0_alpha + alpha * i_1_alpha
+            image_alpha_combined = (1 - alpha) * image_0_alpha + alpha * image_1_alpha
 
             if args.feature_extract:
-                x_feat_i0_list = feature_model(i0)
-                x_feat_i1_list = feature_model(i1)
-                x_feat_i0_alpha_list, x_feat_i1_alpha_list = [], []
+                x_feat_image0_list = feature_model(image0)
+                x_feat_image1_list = feature_model(image1)
+                x_feat_image0_alpha_list, x_feat_i1_alpha_list = [], []
 
-                for idx in range(len(x_feat_i0_list)):
+                for idx in range(len(x_feat_image0_list)):
                     reg_model_feat = utils.register_model(
                         tuple([x // (2**idx) for x in img_size])
                     )
-                    x_feat_i0_alpha_list.append(
-                        reg_model_feat(
-                            [
-                                x_feat_i0_list[idx],
-                                F.interpolate(
-                                    flow_0_alpha * (0.5 ** (idx)),
-                                    scale_factor=0.5 ** (idx),
-                                ).float(),
-                            ]
-                        )
+                    x_feat_image0_alpha_list.append(
+                        reg_model_feat([x_feat_image0_list[idx], 
+                                        F.interpolate(flow_0_alpha * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
                     )
                     x_feat_i1_alpha_list.append(
-                        reg_model_feat(
-                            [
-                                x_feat_i1_list[idx],
-                                F.interpolate(
-                                    flow_1_alpha * (0.5 ** (idx)),
-                                    scale_factor=0.5 ** (idx),
-                                ).float(),
-                            ]
-                        )
+                        reg_model_feat([x_feat_image1_list[idx],
+                                F.interpolate(flow_1_alpha * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
                     )
 
-                i_alpha_out_diff = refinement_model(
-                    i_alpha_combined, x_feat_i0_alpha_list, x_feat_i1_alpha_list
-                )
+                image_alpha_out_diff = refinement_model(image_alpha_combined, x_feat_image0_alpha_list, x_feat_i1_alpha_list)
 
             else:
-                i_alpha_out_diff = refinement_model(i_alpha_combined)
+                image_alpha_out_diff = refinement_model(image_alpha_combined)
 
-            i_alpha = i_alpha_combined + i_alpha_out_diff
-
+            image_alpha = image_alpha_combined + image_alpha_out_diff
             gt_alpha = video[..., i]
 
-            psnr, ncc, ssim, nmse, lpips = evaluate(gt_alpha, i_alpha)
+            psnr, ncc, ssim, nmse, lpips = evaluate(gt_alpha, image_alpha)
 
             psnr_log.update(psnr)
             nmse_log.update(nmse)

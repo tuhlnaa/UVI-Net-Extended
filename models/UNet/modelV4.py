@@ -299,7 +299,6 @@ class ConvBlock(nn.Module):
         self.activation = nn.LeakyReLU(negative_slope=0.2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        print('bbbbb:', x.shape)
         return self.activation(self.conv(x))
 
 

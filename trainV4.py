@@ -19,7 +19,9 @@ from models.UNet.model import Unet3D, Unet3D_multi
 from models.VoxelMorph.model import VoxelMorph
 from models.feature_extract.model import FeatureExtract
 import voxelmorph as vxm
+
 from data.datasetsV2 import ACDCHeartDataset, LungDataset
+from models.UNet.modelV4 import UNet3D, UNet3DMulti
 
 def set_seed(seed):
     random.seed(seed)
@@ -52,7 +54,12 @@ def main(args):
         [16, 32, 32, 32],             # encoder features
         [32, 32, 32, 32, 32, 16, 16]  # decoder features
     ]
+    refinement_nb_features = [
+        [8, 16, 32],             # encoder features
+        [32, 32, 32, 8, 8, 3]    # decoder features
+    ]
     inshape = [128, 128, 128]
+    additional_dims = [4, 8, 16]
 
     # build model
     # flow_model = vxm.networks.VxmDense(
@@ -80,9 +87,11 @@ def main(args):
     flow_model = VoxelMorph(img_size).cuda()  # Flow calculation model
 
     if args.feature_extract:
-        refinement_model = Unet3D_multi(img_size).cuda()
+        #refinement_model = Unet3D_multi(img_size).cuda()
+        refinement_model = UNet3DMulti(inshape, feature_maps=refinement_nb_features, additional_dims=additional_dims).cuda()
     else:
-        refinement_model = Unet3D(img_size).cuda()
+        #refinement_model = Unet3D(img_size).cuda()
+        refinement_model = UNet3D(inshape, encoder_features=refinement_nb_features[0], decoder_features=refinement_nb_features[1]).cuda()
 
     if args.feature_extract:
         feature_model = FeatureExtract().cuda()
@@ -100,60 +109,60 @@ def main(args):
     """
     Initialize training
     """
-    # if args.dataset == "cardiac":
-    #     data_dir = os.path.join("dataset", "ACDC_database", "training")
-    #     train_dataset = datasets.ACDCHeartDataset(data_dir, phase="train", split=split)
-    #     val_dataset = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
-    # elif args.dataset == "lung":
-    #     data_dir = os.path.join("dataset", "4D-Lung_Preprocessed")
-    #     train_dataset = datasets.LungDataset(data_dir, phase="train", split=split)
-    #     val_dataset = datasets.LungDataset(data_dir, phase="test", split=split)
-
-    # train_loader = DataLoader(
-    #     train_dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=True,
-    #     num_workers=0,
-    #     pin_memory=False,
-    # )
-    # val_loader = DataLoader(
-    #     val_dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     pin_memory=False,
-    #     drop_last=True,
-    # )
-
     if args.dataset == "cardiac":
-        data_path = r"./dataset/ACDC_database"
-        train_dataset = ACDCHeartDataset(
-            data_path=data_path,
-            phase="train",
-            split=90,
-            image_size=(128, 128, 32)
-        )
-        val_dataset = ACDCHeartDataset(
-            data_path=data_path,
-            phase="val",
-            split=90,
-            image_size=(128, 128, 32)
-        )
-
+        data_dir = os.path.join("dataset", "ACDC_database", "training")
+        train_dataset = datasets.ACDCHeartDataset(data_dir, phase="train", split=split)
+        val_dataset = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
     elif args.dataset == "lung":
-        data_path = r"./dataset/4D-Lung_Preprocessed"
-        train_dataset = LungDataset(
-            data_path=data_path,
-            phase="train",
-            split=68,
-            image_size=(128, 128, 128)
-        )
-        val_dataset = LungDataset(
-            data_path=data_path,
-            phase="val",
-            split=68,
-            image_size=(128, 128, 128)
-        )
+        data_dir = os.path.join("dataset", "4D-Lung_Preprocessed")
+        train_dataset = datasets.LungDataset(data_dir, phase="train", split=split)
+        val_dataset = datasets.LungDataset(data_dir, phase="test", split=split)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=0,
+        pin_memory=False,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=False,
+        drop_last=True,
+    )
+
+    # if args.dataset == "cardiac":
+    #     data_path = r"./dataset/ACDC_database"
+    #     train_dataset = ACDCHeartDataset(
+    #         data_path=data_path,
+    #         phase="train",
+    #         split=90,
+    #         image_size=(128, 128, 32)
+    #     )
+    #     val_dataset = ACDCHeartDataset(
+    #         data_path=data_path,
+    #         phase="val",
+    #         split=90,
+    #         image_size=(128, 128, 32)
+    #     )
+
+    # elif args.dataset == "lung":
+    #     data_path = r"./dataset/4D-Lung_Preprocessed"
+    #     train_dataset = LungDataset(
+    #         data_path=data_path,
+    #         phase="train",
+    #         split=68,
+    #         image_size=(128, 128, 128)
+    #     )
+    #     val_dataset = LungDataset(
+    #         data_path=data_path,
+    #         phase="val",
+    #         split=68,
+    #         image_size=(128, 128, 128)
+    #     )
 
 
     train_loader = DataLoader(
@@ -305,8 +314,8 @@ def main(args):
             # _ = y_target
 
 
-            t1_t2 = (0 - alpha1) / (alpha2 - alpha1)
-            t2_t3 = (1 - alpha2) / (alpha3 - alpha2)
+            t1_t2 = (0 - alpha1) / (alpha2 - alpha1)  # max=1, min=0
+            t2_t3 = (1 - alpha2) / (alpha3 - alpha2)  # max=2, min=0
 
             flow_t1_0 = flow_t1_t2 * t1_t2
             flow_t2_0 = flow_t2_t1 * (1 - t1_t2)
@@ -318,28 +327,28 @@ def main(args):
             image_t2_1 = reg_model_bilin([image_unknown_t2, flow_t2_1.float()])
             image_t3_1 = reg_model_bilin([image1_t3, flow_t3_1.float()])
 
-            i0_combined = (1 - t1_t2) * image_t1_0 + t1_t2 * image_t2_0
-            i1_combined = (1 - t2_t3) * image_t2_1 + t2_t3 * image_t3_1
+            image0_combined = (1 - t1_t2) * image_t1_0 + t1_t2 * image_t2_0
+            image1_combined = (1 - t2_t3) * image_t2_1 + t2_t3 * image_t3_1
 
             if args.feature_extract:
-                x_feat_a1_list = feature_model(image0_t1)
-                x_feat_a2_list = feature_model(image_unknown_t2)
-                x_feat_a3_list = feature_model(image1_t3)
+                x_feat_t1_list = feature_model(image0_t1)
+                x_feat_t2_list = feature_model(image_unknown_t2)
+                x_feat_t3_list = feature_model(image1_t3)
                 (
-                    x_feat_a1_0_list,
-                    x_feat_a2_0_list,
-                    x_feat_a2_1_list,
-                    x_feat_a3_1_list,
+                    x_feat_t1_0_list,
+                    x_feat_t2_0_list,
+                    x_feat_t2_1_list,
+                    x_feat_t3_1_list,
                 ) = ([], [], [], [])
 
-                for feat_idx in range(len(x_feat_a1_list)):
+                for feat_idx in range(len(x_feat_t1_list)):
                     reg_model_feat = utils.register_model(
                         tuple([x // (2**feat_idx) for x in img_size])
                     )
-                    x_feat_a1_0_list.append(
+                    x_feat_t1_0_list.append(
                         reg_model_feat(
                             [
-                                x_feat_a1_list[feat_idx],
+                                x_feat_t1_list[feat_idx],
                                 F.interpolate(
                                     flow_t1_0 * (0.5 ** (feat_idx)),
                                     scale_factor=0.5 ** (feat_idx),
@@ -347,10 +356,10 @@ def main(args):
                             ]
                         )
                     )
-                    x_feat_a2_0_list.append(
+                    x_feat_t2_0_list.append(
                         reg_model_feat(
                             [
-                                x_feat_a2_list[feat_idx],
+                                x_feat_t2_list[feat_idx],
                                 F.interpolate(
                                     flow_t2_0 * (0.5 ** (feat_idx)),
                                     scale_factor=0.5 ** (feat_idx),
@@ -358,10 +367,10 @@ def main(args):
                             ]
                         )
                     )
-                    x_feat_a2_1_list.append(
+                    x_feat_t2_1_list.append(
                         reg_model_feat(
                             [
-                                x_feat_a2_list[feat_idx],
+                                x_feat_t2_list[feat_idx],
                                 F.interpolate(
                                     flow_t2_1 * (0.5 ** (feat_idx)),
                                     scale_factor=0.5 ** (feat_idx),
@@ -369,10 +378,10 @@ def main(args):
                             ]
                         )
                     )
-                    x_feat_a3_1_list.append(
+                    x_feat_t3_1_list.append(
                         reg_model_feat(
                             [
-                                x_feat_a3_list[feat_idx],
+                                x_feat_t3_list[feat_idx],
                                 F.interpolate(
                                     flow_t3_1 * (0.5 ** (feat_idx)),
                                     scale_factor=0.5 ** (feat_idx),
@@ -380,30 +389,28 @@ def main(args):
                             ]
                         )
                     )
-                print("aaaaaaaaaaa:", len(x_feat_a1_0_list), x_feat_a1_0_list[0].shape, x_feat_a1_0_list[1].shape, x_feat_a1_0_list[2].shape)
-                print("aaaaaaaaaaa:", len(x_feat_a2_0_list), x_feat_a2_0_list[0].shape, x_feat_a2_0_list[1].shape, x_feat_a2_0_list[2].shape)
-                quit()
-                i0_out_diff = refinement_model(
-                    i0_combined, x_feat_a1_0_list, x_feat_a2_0_list
+
+                image0_out_diff = refinement_model(
+                    image0_combined, x_feat_t1_0_list, x_feat_t2_0_list
                 )
-                i1_out_diff = refinement_model(
-                    i1_combined, x_feat_a2_1_list, x_feat_a3_1_list
+                image1_out_diff = refinement_model(
+                    image1_combined, x_feat_t2_1_list, x_feat_t3_1_list
                 )
                 
             else:
-                i0_out_diff = refinement_model(i0_combined)
-                i1_out_diff = refinement_model(i1_combined)
+                image0_out_diff = refinement_model(image0_combined)
+                image1_out_diff = refinement_model(image1_combined)
 
-            i0_out = i0_combined + i0_out_diff
-            i1_out = i1_combined + i1_out_diff
-            loss_diff_0 = criterion_l1n(i0_out_diff)
-            loss_diff_1 = criterion_l1n(i1_out_diff)
+            image0_out = image0_combined + image0_out_diff
+            image1_out = image1_combined + image1_out_diff
+            loss_diff_0 = criterion_l1n(image0_out_diff)
+            loss_diff_1 = criterion_l1n(image1_out_diff)
             loss_diff = (loss_diff_0 + loss_diff_1) * args.weight_diff
 
-            loss_cyc_ncc_0 = criterion_ncc(i0_out, image0) * args.weight_ncc
-            loss_cyc_cha_0 = criterion_cha(i0_out, image0, eps=epsilon) * args.weight_cha
-            loss_cyc_ncc_1 = criterion_ncc(i1_out, image1) * args.weight_ncc
-            loss_cyc_cha_1 = criterion_cha(i1_out, image1, eps=epsilon) * args.weight_cha
+            loss_cyc_ncc_0 = criterion_ncc(image0_out, image0) * args.weight_ncc
+            loss_cyc_cha_0 = criterion_cha(image0_out, image0, eps=epsilon) * args.weight_cha
+            loss_cyc_ncc_1 = criterion_ncc(image1_out, image1) * args.weight_ncc
+            loss_cyc_cha_1 = criterion_cha(image1_out, image1, eps=epsilon) * args.weight_cha
 
             loss_cycle_0 = loss_cyc_ncc_0 + loss_cyc_cha_0
             loss_cycle_1 = loss_cyc_ncc_1 + loss_cyc_cha_1

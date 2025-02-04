@@ -8,6 +8,11 @@ import argparse
 import numpy as np
 import torch.nn.functional as F
 
+
+from rich.table import Table
+from rich.panel import Panel
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn, TimeRemainingColumn
 from pathlib import Path
 from dataclasses import dataclass
 from torch.utils.data import DataLoader
@@ -16,11 +21,14 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics import StructuralSimilarityIndexMeasure
 
 import losses
-from utils import utils
+from utils import datasets, utils
 from data.datasetsV2 import ACDCHeartDataset, LungDataset
 from models.VoxelMorph.model import VoxelMorph
 from models.UNet.modelV4 import UNet3D, UNet3DMulti
 from models.feature_extract.model import FeatureExtract
+
+# Initialize rich console
+console = Console()
 
 @dataclass
 class ImageMetrics:
@@ -174,23 +182,22 @@ class ImageInterpolator:
         return image_t_combined + diff
 
 
-def create_data_loader(dataset_name: str, split: Optional[int] = None) -> Tuple[DataLoader, Tuple[int, int, int]]:
+def create_data_loader(base_path: str, dataset_name: str, split: Optional[int] = None) -> Tuple[DataLoader, Tuple[int, int, int]]:
     """Create data loader and return image size for the specified dataset."""
     if args.dataset == "cardiac":
         image_size=(128, 128, 32)
         data_path = r"./dataset/ACDC_database"
         val_dataset = ACDCHeartDataset(
-            data_path=data_path,
+            data_path=base_path,
             phase="val",
             split=90 if split is None else split,
             image_size=image_size
         )
-
     elif args.dataset == "lung":
         image_size=(128, 128, 128)
         data_path = r"./dataset/4D-Lung_Preprocessed"
         val_dataset = LungDataset(
-            data_path=data_path,
+            data_path=base_path,
             phase="val",
             split=68 if split is None else split,
             image_size=image_size
@@ -211,65 +218,79 @@ def create_data_loader(dataset_name: str, split: Optional[int] = None) -> Tuple[
 
 @utils.timer_decorator
 def main(args):
-    """Main evaluation function."""
     set_seed(args.seed)
     
     # Device setup
     device = torch.device(args.device)
     if device.type == 'cuda':
-        print(f"Using GPU: {torch.cuda.get_device_name(device.index)}")
-        print(f"Number of available GPUs: {torch.cuda.device_count()}")
+        console.print(f"[bold green]GPU:[/] {torch.cuda.get_device_name(device.index)}")
+        console.print(f"[bold green]Available GPUs:[/] {torch.cuda.device_count()}")
     
-    data_loader, img_size = create_data_loader(args.dataset, args.split)
+    # Create data loader
+    with console.status("[bold yellow]Creating data loader..."):
+        data_loader, img_size = create_data_loader(args.data_dir, args.dataset, args.split)
+        console.print(f"[bold green]Dataset:[/] {args.dataset}")
+        console.print(f"[bold green]Image size:[/] {img_size}")
     
     # Initialize interpolator
     interpolator = ImageInterpolator(img_size, device, args.feature_extract)
     
-    # Load best model
+    # Load checkpoint
     checkpoint_path = Path(args.resume)
     if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
+        console.print(f"[bold red]Error:[/] Checkpoint not found at {checkpoint_path}")
+        return
     interpolator.load_models(checkpoint_path)
-    print(f"Loaded checkpoint from: {checkpoint_path}")
 
-    # Evaluation metrics
-    metrics = {name: utils.AverageMeter() for name in 
-              ['psnr', 'nmse', 'ncc', 'lpips', 'ssim']}
+    # Initialize metrics
+    metrics = {name: utils.AverageMeter() for name in ['psnr', 'nmse', 'ncc', 'lpips', 'ssim']}
     
-    # Evaluation loop
-    for data in data_loader:
-        data = [t.to(device) for t in data]
-        image0, image1 = data[0], data[1]
-        frame0_idx, frame1_idx = data[2], data[3]
-        video = data[4]
+    # Evaluation progress bar
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        console=console
+    ) as progress:
+        eval_task = progress.add_task("[cyan]Evaluating...", total=len(data_loader))
         
-        # Interpolate intermediate frames
-        for frame_idx in range(frame0_idx + 1, frame1_idx):
-            alpha = (frame_idx - frame0_idx) / (frame1_idx - frame0_idx)
-            
-            # Generate intermediate frame
-            generated = interpolator.interpolate_frame(image0, image1, alpha)
-            ground_truth = video[..., frame_idx]
-            
-            # Calculate metrics
-            frame_metrics = interpolator.evaluate_quality(ground_truth, generated, device)
-            
-            # Update metrics
-            metrics['psnr'].update(frame_metrics.psnr)
-            metrics['ncc'].update(frame_metrics.ncc)
-            metrics['ssim'].update(frame_metrics.ssim)
-            metrics['nmse'].update(frame_metrics.nmse)
-            metrics['lpips'].update(frame_metrics.lpips)
-    
-    # Print results
-    print("\nResults:")
-    print("AVG\tPSNR: {:.2f}, NCC: {:.3f}, SSIM: {:.3f}, NMSE: {:.3f}, LPIPS: {:.3f}".format(
-        metrics['psnr'].avg, metrics['ncc'].avg, metrics['ssim'].avg,
-        metrics['nmse'].avg * 100, metrics['lpips'].avg * 100))
-    
-    print("STDERR\tPSNR: {:.3f}, NCC: {:.3f}, SSIM: {:.3f}, NMSE: {:.3f}, LPIPS: {:.3f}".format(
-        metrics['psnr'].stderr, metrics['ncc'].stderr, metrics['ssim'].stderr,
-        metrics['nmse'].stderr * 100, metrics['lpips'].stderr * 100))
+        # Evaluation loop
+        for data in data_loader:
+            data = [t.to(device) for t in data]
+            image0, image1 = data[0], data[1]
+            frame0_idx, frame1_idx = data[2], data[3]
+            video = data[4]
+
+            # Interpolate intermediate frames
+            for frame_idx in range(frame0_idx + 1, frame1_idx):
+                alpha = (frame_idx - frame0_idx) / (frame1_idx - frame0_idx)
+
+                # Generate intermediate frame
+                generated = interpolator.interpolate_frame(image0, image1, alpha)
+                ground_truth = video[..., frame_idx]
+
+                # Calculate metrics
+                frame_metrics = interpolator.evaluate_quality(ground_truth, generated, device)
+                
+                # Update metrics
+                for name, value in vars(frame_metrics).items():
+                    metrics[name].update(value)
+
+            progress.advance(eval_task)
+
+    # Create results table (NMSE and LPIPS should be multiplied by 100)
+    table = Table(title="Evaluation Results", show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Average", justify="right", style="green")
+    table.add_column("Std Error", justify="right", style="yellow")
+
+    for metric in metrics:
+        table.add_row(metric.upper(), f"{metrics[metric].avg:.4f}", f"±{metrics[metric].stderr:.4f}")
+
+    console.print(table)
 
 
 if __name__ == "__main__":
@@ -283,8 +304,6 @@ if __name__ == "__main__":
 
     parser.add_argument('--feature_extract', action='store_true', default=True, help='Use feature extraction')
     parser.add_argument('--seed', type=int, default=0, help='Random seed')
-    
-    
-    
     args = parser.parse_args()
     main(args)
+    

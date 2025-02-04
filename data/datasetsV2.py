@@ -92,7 +92,8 @@ class ACDCHeartDataset(BaseMedicalDataset):
             base_path = self.data_path / "training"
         else:  # test or val
             base_path = self.data_path / "testing"
-            
+            #base_path = self.data_path / "training"
+
         if not base_path.exists():
             raise ValueError(f"Path does not exist: {base_path}")
             

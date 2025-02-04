@@ -82,21 +82,6 @@ class CTImageProcessor:
             
         return mask_new
 
-    # def _create_mask(self, image: np.ndarray) -> np.ndarray:
-    #     """Create a binary mask using only scipy."""
-    #     labels, _ = ndimage.label(image, structure=np.ones((3, 3, 3)))
-    #     label_count = np.bincount(labels.ravel().astype(np.int32))
-    #     label_count[0] = 0
-        
-    #     mask = labels == label_count.argmax()
-        
-    #     # Fill holes in each slice
-    #     for i in range(mask.shape[-1]):
-    #         if mask[..., i].sum() > 0:
-    #             mask[..., i] = ndimage.binary_fill_holes(mask[..., i])
-        
-    #     return mask
-
 
     def remove_bed(self, ct_image: np.ndarray) -> np.ndarray:
         """Remove bed artifact from CT scan using thresholding and morphological operations."""
@@ -282,6 +267,7 @@ class LungPreprocessor:
 
         successful_count = sum(1 for result in results if result)
         return successful_count
+
 
 def main():
     """Main entry point for preprocessing pipeline."""

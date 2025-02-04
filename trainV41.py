@@ -145,7 +145,7 @@ def setup_optimizer(models: Dict[str, torch.nn.Module], lr: float) -> torch.opti
 def setup_criteria():
     """Setup loss functions."""
     return {
-        'ncc': losses.NCC(),
+        'ncc': losses.NCCLoss(),
         'cha': losses.CharbonnierLoss,
         'reg': losses.Grad3d(penalty="l2"),
         'l1n': losses.L1_norm()

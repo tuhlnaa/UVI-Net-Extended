@@ -14,9 +14,9 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import losses
-from lpips import LPIPS
 from utils import datasets, utils
 from models.UNet.modelV4 import UNet3D, UNet3DMulti
 from models.VoxelMorph.model import VoxelMorph
@@ -34,10 +34,10 @@ class ImageMetrics:
 class ImageInterpolator:
     """Handles medical image interpolation using deep learning models."""
     
-    def __init__(self, img_size: Tuple[int, int, int], feature_extract: bool = True):
+    def __init__(self, img_size: Tuple[int, int, int], device: torch.device, feature_extract: bool = True):
         self.img_size = img_size
         self.feature_extract = feature_extract
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
         
         # Initialize models
         self.flow_model = VoxelMorph(img_size).to(self.device)
@@ -48,9 +48,12 @@ class ImageInterpolator:
         self.reg_model = utils.register_model(img_size, "nearest").to(self.device)
         self.reg_model_bilin = utils.register_model(img_size, "bilinear").to(self.device)
         
-        # Initialize LPIPS
-        self.lpips_fn = LPIPS(net="alex").to(self.device)
-
+        # Initialize LPIPS using torchmetrics
+        self.lpips_fn = LearnedPerceptualImagePatchSimilarity(
+            net_type="alex",
+            reduction="mean",
+            normalize=False  # Expects input in [-1, 1] range
+        ).to(self.device)
 
     def load_models(self, checkpoint_path: Path) -> None:
         """Load pretrained model weights."""
@@ -68,7 +71,9 @@ class ImageInterpolator:
         
         # Calculate basic metrics
         psnr = 20 * np.log10(max_pixel / np.sqrt(mse.item()))
-        ncc = losses.NCC()(original, generated)
+        #ncc = losses.NCC()(original, generated)
+        ncc = losses.NCCLoss()(original, generated)
+        
         ssim = 1 - losses.SSIM3D()(original, generated)
         nmse = mse / torch.mean(original**2)
         
@@ -79,11 +84,14 @@ class ImageInterpolator:
         for dim in [2, 3, 4]:  # Process XY, XZ, YZ planes
             slices_orig = self._prepare_slices(original, dim)
             slices_gen = self._prepare_slices(generated, dim)
-            
-            # Calculate LPIPS for each slice
-            lpips_values = self.lpips_fn(slices_orig, slices_gen)
-            for val in lpips_values:
-                lpips_meter.update(val.item())
+
+            # Clamp values to [-1, 1] before LPIPS calculation
+            slices_orig = torch.clamp(slices_orig, -1, 1)
+            slices_gen = torch.clamp(slices_gen, -1, 1)
+
+            # Calculate LPIPS for each slice pair
+            lpips_value = self.lpips_fn(slices_orig, slices_gen)
+            lpips_meter.update(lpips_value.item())
         
         return ImageMetrics(
             psnr=psnr,
@@ -191,12 +199,18 @@ def main(args):
     """Main evaluation function."""
     set_seed(args.seed)
     
+    # Device setup
+    device = torch.device(args.device)
+    if device.type == 'cuda':
+        print(f"Using GPU: {torch.cuda.get_device_name(device.index)}")
+        print(f"Number of available GPUs: {torch.cuda.device_count()}")
+    
     # Setup
     save_dir = Path(f"outputs/{args.dataset}")
     data_loader, img_size = create_data_loader(args.dataset, args.split)
     
     # Initialize interpolator
-    interpolator = ImageInterpolator(img_size, args.feature_extract)
+    interpolator = ImageInterpolator(img_size, device, args.feature_extract)
     
     # Load best model
     model_path = sorted(save_dir.glob("*"))[args.model_idx]
@@ -209,7 +223,7 @@ def main(args):
     
     # Evaluation loop
     for data in data_loader:
-        data = [t.cuda() for t in data]
+        data = [t.to(device) for t in data]
         image0, image1 = data[0], data[1]
         frame0_idx, frame1_idx = data[2], data[3]
         video = data[4]
@@ -244,28 +258,13 @@ def main(args):
 
 
 if __name__ == "__main__":
-    
-    
     parser = argparse.ArgumentParser(description='Medical image interpolation evaluation')
     parser.add_argument('--seed', type=int, default=0, help='Random seed')
-    parser.add_argument('--gpu', type=str, help='GPU device ID')
-    parser.add_argument('--dataset', type=str, default='cardiac',
-                       choices=['cardiac', 'lung'], help='Dataset name')
-    parser.add_argument('--model_idx', type=int, default=-1,
-                       help='Model checkpoint index')
+    parser.add_argument('--dataset', type=str, default='cardiac', choices=['cardiac', 'lung'], help='Dataset name')
+    parser.add_argument('--model_idx', type=int, default=-1, help='Model checkpoint index')
     parser.add_argument('--split', type=int, help='Dataset split')
-    parser.add_argument('--feature_extract', action='store_true', default=True,
-                       help='Use feature extraction')
+    parser.add_argument('--feature_extract', action='store_true', default=True, help='Use feature extraction')
+    parser.add_argument('--device', type=str, default='cuda', help='Device to use (e.g., cuda:0, cuda:1, cpu)')
     
     args = parser.parse_args()
-    
-    # GPU setup
-    if args.gpu is not None:
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-        
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if torch.cuda.is_available():
-        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
-        print(f"Number of GPUs: {torch.cuda.device_count()}")
-    
     main(args)

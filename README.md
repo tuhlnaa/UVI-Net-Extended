@@ -1,5 +1,6 @@
 # Data-Efficient Unsupervised Interpolation Without Any Intermediate Frame for 4D Medical Images (CVPR 2024)
 
+[![PyTorch](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://pytorch.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.3%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
 [![GitHub repo size](https://img.shields.io/github/repo-size/tuhlnaa/UVI-Net-Extended?label=Repo%20size)](https://github.com/tuhlnaa/UVI-Net-Extended)
 
@@ -25,11 +26,15 @@
     <img src='assets/main_figure.png' width='800px'>
 </div>
 
+<br>
+
 ### Quantitative Results 
 <div align='center'>
     <img src='assets/main_result1.png' width='800px'>
     <img src='assets/main_result2.png' width='800px'>
 </div>
+
+<br>
 
 ### Qualitative Results (Compared with Top-3 Baselines)
 <div align='center'>
@@ -39,21 +44,30 @@
 
 <br>
 
-## ⚒️ Requirements
-### Installation
-prerequisites: `python>=3.8` and `torch>=1.11`.
+## 🚀 Quick Start
 
-Install with `pip`:
 ```bash
+# Clone the repository
+git clone https://github.com/tuhlnaa/UVI-Net-Extended.git
+cd modern-uvi-net
+
+# Create and activate conda environment
+conda create -n uvinet python=3.11
+conda activate uvinet
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Datasets
+<br>
 
-To use this code, you will need to download the ACDC dataset and 4D-Lung dataset. You can download the dataset from the [ACDC website](https://humanheart-project.creatis.insa-lyon.fr/database/#collection/637218c173e9f0047faa00fb) and [4D-Lung website](https://www.cancerimagingarchive.net/collection/4d-lung/).
+
+### 💾 Datasets
+
+To use this code, you will need to download the ACDC dataset (7.26 GB) and 4D-Lung dataset (170 GB). You can download the dataset from the [ACDC website](https://humanheart-project.creatis.insa-lyon.fr/database/#collection/637218c173e9f0047faa00fb), [MICCAI'17 ACDC](https://www.kaggle.com/datasets/samdazel/automated-cardiac-diagnosis-challenge-miccai17) and [4D-Lung website](https://www.cancerimagingarchive.net/collection/4d-lung/).
 
 After downloading the dataset, place the data in the `dataset` directory as follows:
-```bash
+```plain-text
 └── dataset
     ├── ACDC
     │   └── database
@@ -84,22 +98,21 @@ After downloading the dataset, place the data in the `dataset` directory as foll
         └── 119_HM10395
 ```
 
+<br>
+
 For the 4D-Lung dataset, you need to preprocess the data (e.g. bed removal, min-max scaling, cropping, resizing ...) with the following command:
 ```bash
-python data_preprocess/lung_preprocess.py
+.\scripts\preprocess_lung_ct.bat
 ```
-Please note that we have enhanced this code since our submission to CVPR. These enhancements include improved bed removal and the refinement of fine-grained details, leading to better overall results. Consequently, all models, including our UVI-Net and baseline models, exhibit performance improvements of approximately 1.5 to 2.0 in terms of PSNR.
-
-Additionally, we have made available for download both the version reported in our CVPR submission and a new version incorporating the updated code. You can access the preprocessed data through [google drive](https://drive.google.com/drive/folders/1o5w6dn4qN6EHbevO9JLrj6ej7VclaVbH?usp=sharing). Even if you download the version we have released, the data usage license should be checked from the [original website](https://www.cancerimagingarchive.net/data-usage-policies-and-restrictions/).
 
 The final data structure should be as follows:
-```bash
+```plain-text
 └── dataset
     ├── ACDC
     │   └── (same as above)
     ├── 4D-Lung
     │   └── (same as above)
-    └── 4D-Lung-Preprocessed
+    └── 4D-Lung_Preprocessed
         ├── 100_0
         │   ├── ct_100_0_frame0.nii.gz
         │   │             :
@@ -109,26 +122,39 @@ The final data structure should be as follows:
         └── 119_7
 ```
 
-## 🏃‍♀️ Running the code
-### Training
+<br>
 
-In order to train UVI-Net, run the following script:
+## 🔧 Training
+
 ```bash
 python train.py --dataset cardiac
 python train.py --dataset lung
 ```
 
-### Inference
+<br>
 
-In order to perform inference, run the following script:
+## 📊 Evaluation
+
 ```bash
-python evaluate.py --dataset cardiac
-python evaluate.py --dataset lung
+.\scripts\run_evaluation.bat
 ```
 
-## Citation
+<br>
 
-If you make use of our work, please cite our paper:
+## 🤝 Contributing
+Contributions are welcome! If you'd like to add another solution or improve existing implementations:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingSolution`)
+3. Commit your changes (`git commit -m 'Add some AmazingSolution'`)
+4. Push to the branch (`git push origin feature/AmazingSolution`)
+5. Open a Pull Request
+
+<br>
+
+## 📝 Citation
+
+This repository is based on the following paper:
 
 ```bibtex
 @inproceedings{kim2024data,
@@ -139,3 +165,17 @@ If you make use of our work, please cite our paper:
   year={2024}
 }
 ```
+
+<br>
+
+## 🎓 Original Work
+
+This is an enhanced implementation of the original [UVI-Net paper](https://github.com/jungeun122333/UVI-Net). While we've modernized the codebase, all credit for the original method goes to the paper authors.
+
+<br>
+
+## 📮 Contact
+For questions and feedback:
+
+1. Create an issue in this repository
+2. [Google docs](https://docs.google.com/forms/d/e/1FAIpQLSc7obxpa5UXQyDMLE7nssiXzg8Z5qa_kmLBZzqMuslfu8U8vQ/viewform?usp=header)

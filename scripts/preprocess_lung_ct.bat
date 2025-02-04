@@ -5,7 +5,7 @@ rem Configuration
 set "DATA_PATH=dataset"
 
 set "RAW_FOLDER_DIR=%DATA_PATH%/4D-Lung"
-set "OUTPUT_DIR=%DATA_PATH%/4D-Lung-Preprocessed"
+set "OUTPUT_DIR=%DATA_PATH%/4D-Lung_Preprocessed"
 set "N_PROCESSES=12"
 
 rem Print header

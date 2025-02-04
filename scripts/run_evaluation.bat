@@ -14,7 +14,7 @@ echo Starting execution at %date% %time%
 
 rem Execute the preprocessing script
 echo [EXECUTING] Starting evaluation script...
-python evaluationV2.py ^
+python evaluation.py ^
     --dataset "%DATASET%" ^
     --device %DEVICE% ^
     --data_dir %DATA_DIR% ^

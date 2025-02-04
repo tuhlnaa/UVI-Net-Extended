@@ -13,7 +13,9 @@ from torch.utils.data import DataLoader
 
 import losses
 from utils import datasets, utils
-from models.UNet.model import Unet3D, Unet3D_multi
+#from models.UNet.model import Unet3D, Unet3D_multi
+from models.UNet.modelV4 import UNet3D, UNet3DMulti
+
 from models.VoxelMorph.model import VoxelMorph
 from models.feature_extract.model import FeatureExtract
 
@@ -75,7 +77,8 @@ def evaluate(original, generated):
 def main(args):
     set_seed(args.seed)
 
-    save_dir = f"experiments/{args.dataset}"
+    #save_dir = f"experiments/{args.dataset}"
+    save_dir = f"outputs/{args.dataset}"
 
     if args.dataset == "cardiac":
         img_size = (128, 128, 32)
@@ -89,9 +92,9 @@ def main(args):
     """
     flow_model = VoxelMorph(img_size).cuda()
     if args.feature_extract:
-        refinement_model = Unet3D_multi(img_size).cuda()
+        refinement_model = UNet3DMulti(img_size).cuda()
     else:
-        refinement_model = Unet3D(img_size).cuda()
+        refinement_model = UNet3D(img_size).cuda()
 
     if args.feature_extract:
         feature_model = FeatureExtract().cuda()
@@ -116,7 +119,7 @@ def main(args):
     Initialize training
     """
     if args.dataset == "cardiac":
-        data_dir = os.path.join("dataset", "ACDC", "database", "training")
+        data_dir = os.path.join("dataset", "ACDC_database", "training")
         val_set = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
     elif args.dataset == "lung":
         data_dir = os.path.join("dataset", "4D-Lung_Preprocessed")
@@ -152,41 +155,41 @@ def main(args):
         for i in range(image0_frame + 1, image1_frame):
             alpha = (i - image0_frame) / (image1_frame - image0_frame)
 
-            flow_0_alpha = flow_0_1 * alpha
-            flow_1_alpha = flow_1_0 * (1 - alpha)
+            flow_0_t = flow_0_1 * alpha
+            flow_1_t = flow_1_0 * (1 - alpha)
 
-            image_0_alpha = reg_model_bilin([image0, flow_0_alpha.float()])
-            image_1_alpha = reg_model_bilin([image1, flow_1_alpha.float()])
+            image_0_t = reg_model_bilin([image0, flow_0_t.float()])
+            image_1_t = reg_model_bilin([image1, flow_1_t.float()])
 
-            image_alpha_combined = (1 - alpha) * image_0_alpha + alpha * image_1_alpha
+            image_t_combined = (1 - alpha) * image_0_t + alpha * image_1_t
 
             if args.feature_extract:
                 x_feat_image0_list = feature_model(image0)
                 x_feat_image1_list = feature_model(image1)
-                x_feat_image0_alpha_list, x_feat_i1_alpha_list = [], []
+                x_feat_image0_t_list, x_feat_image1_t_list = [], []
 
                 for idx in range(len(x_feat_image0_list)):
                     reg_model_feat = utils.register_model(
                         tuple([x // (2**idx) for x in img_size])
                     )
-                    x_feat_image0_alpha_list.append(
+                    x_feat_image0_t_list.append(
                         reg_model_feat([x_feat_image0_list[idx], 
-                                        F.interpolate(flow_0_alpha * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
+                                        F.interpolate(flow_0_t * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
                     )
-                    x_feat_i1_alpha_list.append(
+                    x_feat_image1_t_list.append(
                         reg_model_feat([x_feat_image1_list[idx],
-                                F.interpolate(flow_1_alpha * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
+                                F.interpolate(flow_1_t * (0.5 ** (idx)), scale_factor=0.5 ** (idx), ).float(),])
                     )
 
-                image_alpha_out_diff = refinement_model(image_alpha_combined, x_feat_image0_alpha_list, x_feat_i1_alpha_list)
+                image_t_out_diff = refinement_model(image_t_combined, x_feat_image0_t_list, x_feat_image1_t_list)
 
             else:
-                image_alpha_out_diff = refinement_model(image_alpha_combined)
+                image_t_out_diff = refinement_model(image_t_combined)
 
-            image_alpha = image_alpha_combined + image_alpha_out_diff
-            gt_alpha = video[..., i]
+            image_t = image_t_combined + image_t_out_diff
+            ground_truth_t = video[..., i]
 
-            psnr, ncc, ssim, nmse, lpips = evaluate(gt_alpha, image_alpha)
+            psnr, ncc, ssim, nmse, lpips = evaluate(ground_truth_t, image_t)
 
             psnr_log.update(psnr)
             nmse_log.update(nmse)
@@ -228,7 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--feature_extract", action="store_true", default=True)
 
     args = parser.parse_args()
-
+    
     """
     GPU configuration
     """
@@ -246,3 +249,4 @@ if __name__ == "__main__":
     print("If the GPU is available? " + str(GPU_avai))
 
     main(args)
+

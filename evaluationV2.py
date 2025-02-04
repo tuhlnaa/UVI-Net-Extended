@@ -8,9 +8,7 @@ import argparse
 import numpy as np
 import torch.nn.functional as F
 
-
 from rich.table import Table
-from rich.panel import Panel
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn, TimeRemainingColumn
 from pathlib import Path
@@ -21,8 +19,8 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics import StructuralSimilarityIndexMeasure
 
 import losses
-from utils import datasets, utils
-from data.datasetsV2 import ACDCHeartDataset, LungDataset
+from utils import utils
+from data.datasets import ACDCHeartDataset, LungDataset
 from models.VoxelMorph.model import VoxelMorph
 from models.UNet.modelV4 import UNet3D, UNet3DMulti
 from models.feature_extract.model import FeatureExtract
@@ -306,4 +304,3 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=0, help='Random seed')
     args = parser.parse_args()
     main(args)
-    

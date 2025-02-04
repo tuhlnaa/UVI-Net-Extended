@@ -2,45 +2,30 @@ import sys
 from pathlib import Path
 from torch.utils.data import DataLoader
 
-sys.path.append(r"E:\Kai_2\CODE_Repository\UVI-Net-Extended")
+PROJECT_ROOT = Path(__file__).parents[1]
+sys.path.append(PROJECT_ROOT)
 
-from data.datasetsV2 import ACDCHeartDataset, LungDataset
+from data.datasets import ACDCHeartDataset, LungDataset
 
 def acdc_data(path):
-    # Configuration
-    data_path = Path(path)  # Update with your actual path
+    data_path = Path(path)
     batch_size = 1
     num_workers = 0
 
     # Initialize dataset
-    # dataset = ACDCHeartDataset(
-    #     data_path=data_path,
-    #     phase="train",
-    #     split=90,
-    #     image_size=(128, 128, 32)
-    # )
-
     dataset = ACDCHeartDataset(
         data_path=data_path,
-        phase="val",
+        phase="val",  # "train" "val"
         split=90,
         image_size=(128, 128, 32)
     )
-
-    # dataset = ACDCHeartDataset(
-    #     data_path=data_path,
-    #     phase="val",
-    #     split=90,
-    #     image_size=(128, 128, 32)
-    # )
-
-    # Create data loader
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         #shuffle=True,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=True, 
+        #drop_last=True,
     )
 
     print(f"Dataset size: {len(dataset)} samples")
@@ -64,8 +49,7 @@ def acdc_data(path):
 
 
 def lung_data(path):
-    # Configuration
-    data_path = Path(path)  # Update with your actual path
+    data_path = Path(path)
     batch_size = 1
     num_workers = 0
 
@@ -76,15 +60,13 @@ def lung_data(path):
         split=68,
         image_size=(128, 128, 128)
     )
-
-    # Create data loader
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=True,
+        #shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
-        drop_last=True,
+        #drop_last=True,
     )
 
     print(f"Dataset size: {len(dataset)} samples")
@@ -145,7 +127,7 @@ Batch 3:
   Device: cpu
   Data type: torch.float32
 
-
+===========================================================
 Dataset size: 68 samples
 Number of batches: 68
 

@@ -1,8 +1,12 @@
-import sys
-sys.path.append(r"E:\Kai_2\CODE_Repository\UVI-Net-Extended")
 
+import sys
 import torch
+from pathlib import Path
 from torchinfo import summary
+
+PROJECT_ROOT = Path(__file__).parents[1]
+sys.path.append(PROJECT_ROOT)
+
 from models.feature_extract.model import FeatureExtract
 
 # configure unet features

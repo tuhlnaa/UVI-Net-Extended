@@ -1,12 +1,14 @@
 import os
 import sys
+import torch
+from pathlib import Path
+from torchinfo import summary
 
 os.environ["VXM_BACKEND"] = "pytorch"
-sys.path.append(r"E:\Kai_2\CODE_Repository\UVI-Net-Extended")
+PROJECT_ROOT = Path(__file__).parents[1]
+sys.path.append(PROJECT_ROOT)
 
-import torch
 import voxelmorph as vxm
-from torchinfo import summary
 from models.UNet.model import Unet3D, Unet3D_multi
 from models.UNet.modelV4 import UNet3D, UNet3DMulti
 

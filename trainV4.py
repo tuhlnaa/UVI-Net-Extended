@@ -20,7 +20,7 @@ from models.VoxelMorph.model import VoxelMorph
 from models.feature_extract.model import FeatureExtract
 import voxelmorph as vxm
 
-from data.datasetsV2 import ACDCHeartDataset, LungDataset
+from data.datasets import ACDCHeartDataset, LungDataset
 from models.UNet.modelV4 import UNet3D, UNet3DMulti
 
 def set_seed(seed):

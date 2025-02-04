@@ -7,6 +7,19 @@ import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter
 from torch import nn
 
+import time
+from functools import wraps
+
+def timer_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        print(f'{func.__name__} took: {end_time - start_time:4f} s')
+        return result
+    return wrapper
+
 
 def pkload(fname):
     with open(fname, "rb") as f:

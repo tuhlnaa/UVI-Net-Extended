@@ -36,7 +36,7 @@ def evaluate(original, generated):
     psnr = 20 * log10(max_pixel / sqrt(mse))
 
     ### NCC
-    criterion_ncc = losses.NCC()
+    criterion_ncc = losses.NCCLoss()
     ncc = criterion_ncc(original, generated)
 
     #### SSIM
@@ -74,6 +74,7 @@ def evaluate(original, generated):
     return psnr, -1 * ncc.item(), ssim.item(), nmse.item(), lpips.avg
 
 
+@utils.timer_decorator
 def main(args):
     set_seed(args.seed)
 

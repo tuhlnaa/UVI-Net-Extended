@@ -2,24 +2,24 @@
 Data-Efficient Unsupervised Interpolation for 4D Medical Images.
 This module implements frame interpolation for medical image sequences.
 """
-
-import os
 import torch
-import argparse
 import random
+import argparse
 import numpy as np
 import torch.nn.functional as F
 
-from torch.utils.data import DataLoader
 from pathlib import Path
 from dataclasses import dataclass
+from torch.utils.data import DataLoader
 from typing import Tuple, List, Optional
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics import StructuralSimilarityIndexMeasure
 
 import losses
-from utils import datasets, utils
-from models.UNet.modelV4 import UNet3D, UNet3DMulti
+from utils import utils
+from data.datasetsV2 import ACDCHeartDataset, LungDataset
 from models.VoxelMorph.model import VoxelMorph
+from models.UNet.modelV4 import UNet3D, UNet3DMulti
 from models.feature_extract.model import FeatureExtract
 
 @dataclass
@@ -30,6 +30,18 @@ class ImageMetrics:
     ssim: float
     nmse: float
     lpips: float
+
+
+def set_seed(seed: int) -> None:
+    """Set random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+
 
 class ImageInterpolator:
     """Handles medical image interpolation using deep learning models."""
@@ -55,6 +67,7 @@ class ImageInterpolator:
             normalize=False  # Expects input in [-1, 1] range
         ).to(self.device)
 
+
     def load_models(self, checkpoint_path: Path) -> None:
         """Load pretrained model weights."""
         checkpoint = torch.load(checkpoint_path)
@@ -64,17 +77,18 @@ class ImageInterpolator:
             self.feature_model.load_state_dict(checkpoint["feature_model_state_dict"])
 
 
-    def evaluate_quality(self, original: torch.Tensor, generated: torch.Tensor) -> ImageMetrics:
+    def evaluate_quality(self, original: torch.Tensor, generated: torch.Tensor,  device: torch.device) -> ImageMetrics:
         """Calculate image quality metrics between original and generated images."""
         max_pixel = 1.0
+        original = torch.clamp(original, 0, 1)
+        generated = torch.clamp(generated, 0, 1)
+
         mse = torch.mean((original - generated) ** 2)
-        
+
         # Calculate basic metrics
         psnr = 20 * np.log10(max_pixel / np.sqrt(mse.item()))
-        #ncc = losses.NCC()(original, generated)
         ncc = losses.NCCLoss()(original, generated)
-        
-        ssim = 1 - losses.SSIM3D()(original, generated)
+        ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)(original, generated)
         nmse = mse / torch.mean(original**2)
         
         # Calculate LPIPS
@@ -84,10 +98,6 @@ class ImageInterpolator:
         for dim in [2, 3, 4]:  # Process XY, XZ, YZ planes
             slices_orig = self._prepare_slices(original, dim)
             slices_gen = self._prepare_slices(generated, dim)
-
-            # Clamp values to [-1, 1] before LPIPS calculation
-            slices_orig = torch.clamp(slices_orig, -1, 1)
-            slices_gen = torch.clamp(slices_gen, -1, 1)
 
             # Calculate LPIPS for each slice pair
             lpips_value = self.lpips_fn(slices_orig, slices_gen)
@@ -164,37 +174,42 @@ class ImageInterpolator:
         return image_t_combined + diff
 
 
-def set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-
-
 def create_data_loader(dataset_name: str, split: Optional[int] = None) -> Tuple[DataLoader, Tuple[int, int, int]]:
     """Create data loader and return image size for the specified dataset."""
-    if dataset_name == "cardiac":
-        img_size = (128, 128, 32)
-        split = 90 if split is None else split
-        data_dir = Path("dataset/ACDC_database/training")
-        dataset = datasets.ACDCHeartDataset(data_dir, phase="test", split=split)
-    elif dataset_name == "lung":
-        img_size = (128, 128, 128)
-        split = 68 if split is None else split
-        data_dir = Path("dataset/4D-Lung_Preprocessed")
-        dataset = datasets.LungDataset(data_dir, phase="test", split=split)
+    if args.dataset == "cardiac":
+        image_size=(128, 128, 32)
+        data_path = r"./dataset/ACDC_database"
+        val_dataset = ACDCHeartDataset(
+            data_path=data_path,
+            phase="val",
+            split=90 if split is None else split,
+            image_size=image_size
+        )
+
+    elif args.dataset == "lung":
+        image_size=(128, 128, 128)
+        data_path = r"./dataset/4D-Lung_Preprocessed"
+        val_dataset = LungDataset(
+            data_path=data_path,
+            phase="val",
+            split=68 if split is None else split,
+            image_size=image_size
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
-    loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4, 
-                       pin_memory=False, drop_last=True)
-    return loader, img_size
+    loader = DataLoader(
+        val_dataset, 
+        batch_size=1, 
+        shuffle=False, 
+        num_workers=4, 
+        pin_memory=False, 
+        drop_last=True
+    )
+    return loader, image_size
 
 
+@utils.timer_decorator
 def main(args):
     """Main evaluation function."""
     set_seed(args.seed)
@@ -205,18 +220,18 @@ def main(args):
         print(f"Using GPU: {torch.cuda.get_device_name(device.index)}")
         print(f"Number of available GPUs: {torch.cuda.device_count()}")
     
-    # Setup
-    save_dir = Path(f"outputs/{args.dataset}")
     data_loader, img_size = create_data_loader(args.dataset, args.split)
     
     # Initialize interpolator
     interpolator = ImageInterpolator(img_size, device, args.feature_extract)
     
     # Load best model
-    model_path = sorted(save_dir.glob("*"))[args.model_idx]
-    interpolator.load_models(model_path)
-    print(f"Model: {model_path.name} loaded!")
-    
+    checkpoint_path = Path(args.resume)
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
+    interpolator.load_models(checkpoint_path)
+    print(f"Loaded checkpoint from: {checkpoint_path}")
+
     # Evaluation metrics
     metrics = {name: utils.AverageMeter() for name in 
               ['psnr', 'nmse', 'ncc', 'lpips', 'ssim']}
@@ -237,7 +252,7 @@ def main(args):
             ground_truth = video[..., frame_idx]
             
             # Calculate metrics
-            frame_metrics = interpolator.evaluate_quality(ground_truth, generated)
+            frame_metrics = interpolator.evaluate_quality(ground_truth, generated, device)
             
             # Update metrics
             metrics['psnr'].update(frame_metrics.psnr)
@@ -259,12 +274,17 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Medical image interpolation evaluation')
-    parser.add_argument('--seed', type=int, default=0, help='Random seed')
-    parser.add_argument('--dataset', type=str, default='cardiac', choices=['cardiac', 'lung'], help='Dataset name')
-    parser.add_argument('--model_idx', type=int, default=-1, help='Model checkpoint index')
-    parser.add_argument('--split', type=int, help='Dataset split')
-    parser.add_argument('--feature_extract', action='store_true', default=True, help='Use feature extraction')
+    parser.add_argument('--resume', type=str, required=True, help='Resume full model and optimizer state from checkpoint')
     parser.add_argument('--device', type=str, default='cuda', help='Device to use (e.g., cuda:0, cuda:1, cpu)')
+
+    parser.add_argument('--dataset', type=str, default='cardiac', choices=['cardiac', 'lung'], help='Dataset name')
+    parser.add_argument('--data_dir', type=str, required=True, help='Path to the dataset directory')
+    parser.add_argument('--split', type=int, help='Dataset split')
+
+    parser.add_argument('--feature_extract', action='store_true', default=True, help='Use feature extraction')
+    parser.add_argument('--seed', type=int, default=0, help='Random seed')
+    
+    
     
     args = parser.parse_args()
     main(args)

@@ -15,7 +15,6 @@ import skimage.morphology as morphology
 
 from tqdm import tqdm
 from pathlib import Path
-from functools import partial
 from PIL import Image, ImageDraw
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Union
@@ -138,11 +137,21 @@ class CTImageProcessor:
         pad_dims.append((0, 0))  # No padding for depth dimension
         
         return np.pad(cropped, pad_dims, mode="minimum")
-    
+
 
 class DCMDataset:
-    """Handles DICOM dataset operations."""
-    
+    """Handles DICOM dataset operations.
+
+    HU = pixel_value * rescale_slope + rescale_intercept
+
+    In many CT scanners, including Philips systems (Philips Brilliance Big Bore CT scanner), the default rescale slope is 1 and the rescale intercept is -1000. 
+    This means that to convert the stored pixel values to actual HU values, you need to subtract 1000.
+
+    This adjustment ensures that:
+    - Air (which should be -1000 HU) is correctly represented
+    - Water (which should be 0 HU) is correctly represented
+    - Other tissue densities are properly scaled in HU
+    """
     def __init__(self, config: PreprocessingConfig):
         self.config = config
     

@@ -62,7 +62,7 @@ pip install -r requirements.txt
 <br>
 
 
-### 💾 Datasets
+## 💾 Datasets
 
 To use this code, you will need to download the ACDC dataset (7.26 GB) and 4D-Lung dataset (170 GB). You can download the dataset from the [ACDC website](https://humanheart-project.creatis.insa-lyon.fr/database/#collection/637218c173e9f0047faa00fb), [MICCAI'17 ACDC](https://www.kaggle.com/datasets/samdazel/automated-cardiac-diagnosis-challenge-miccai17) and [4D-Lung website](https://www.cancerimagingarchive.net/collection/4d-lung/).
 

@@ -56,7 +56,7 @@ def lung_data(path):
     # Initialize dataset
     dataset = LungDataset(
         data_path=data_path,
-        phase="train",
+        phase="train",  # "train" "val"
         split=68,
         image_size=(128, 128, 128)
     )

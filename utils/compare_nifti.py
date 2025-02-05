@@ -10,14 +10,10 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
     """
     Compare two NIfTI files and generate comparison metrics and visualizations.
     
-    Parameters:
-    -----------
-    file1_path : str
-        Path to first NIfTI file
-    file2_path : str
-        Path to second NIfTI file
-    output_dir : str
-        Directory to save comparison results
+    Args:
+        file1_path (str): Path to first NIfTI file
+        file2_path (str): Path to second NIfTI file
+        output_dir (str): Directory to save comparison results
     """
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -68,9 +64,9 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
             for stat_name, stat_value in value.items():
                 f.write(f"{stat_name}: {stat_value}\n")
     
+    
     # Visualization function
     def plot_middle_slices(data, title, filename, color='gray', vmin=0, vmax=1):
-    #def plot_middle_slices(data, title, filename, color='gray'):
         """Plot middle slices in all three orientations"""
         mid_x = data.shape[0] // 2
         mid_y = data.shape[1] // 2
@@ -131,6 +127,7 @@ def compare_nifti_files(file1_path: str, file2_path: str, output_dir: str = "com
         plt.close()
 
     return stats
+
 
 if __name__ == "__main__":
     import argparse

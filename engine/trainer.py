@@ -15,7 +15,6 @@ import losses
 
 class Trainer:
     """Trainer class for managing the training process of the medical image interpolation model."""
-    
     def __init__(
         self,
         flow_model: nn.Module,

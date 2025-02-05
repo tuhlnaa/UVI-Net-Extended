@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 
-from .configV3 import Config
+from .configV2 import Config
 
 
 def setup_environment(config: Config) -> None:

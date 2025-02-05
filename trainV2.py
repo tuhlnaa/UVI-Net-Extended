@@ -25,8 +25,8 @@ from models.UNet.modelV4 import UNet3D, UNet3DMulti
 from models.VoxelMorph.model import VoxelMorph
 
 import losses
-from engine.trainerV41 import Trainer
-from engine.validatorV41 import Validator
+from engine.trainer import Trainer
+from engine.validator import Validator
 
 
 def parse_args():

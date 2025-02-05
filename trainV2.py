@@ -24,7 +24,7 @@ from models.UNet.modelV4 import UNet3D, UNet3DMulti
 #from models.voxelmorph import VoxelMorph
 from models.VoxelMorph.model import VoxelMorph
 
-import losses
+from utils import losses
 from engine.trainer import Trainer
 from engine.validator import Validator
 

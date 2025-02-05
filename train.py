@@ -13,8 +13,7 @@ from torch import optim
 from torch.utils.data import DataLoader
 from tqdm import trange
 
-import losses
-from utils import datasets, utils
+from utils import datasets, utils, losses
 from models.UNet.model import Unet3D, Unet3D_multi
 from models.VoxelMorph.model import VoxelMorph
 from models.feature_extract.model import FeatureExtract

@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import voxelmorph as vxm
 
-from losses import Grad3d, Grad
+from utils.losses import Grad3d, Grad
 
 def test_grad_loss():
     # Test case 1: Simple 2D case with more pronounced differences

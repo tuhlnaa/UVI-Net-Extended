@@ -5,7 +5,7 @@ from pathlib import Path
 from torchinfo import summary
 
 PROJECT_ROOT = Path(__file__).parents[1]
-sys.path.append(PROJECT_ROOT)
+sys.path.append(str(PROJECT_ROOT))
 
 from models.feature_extract.model import FeatureExtract
 

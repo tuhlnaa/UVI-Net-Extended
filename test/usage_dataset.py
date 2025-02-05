@@ -3,7 +3,7 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 
 PROJECT_ROOT = Path(__file__).parents[1]
-sys.path.append(PROJECT_ROOT)
+sys.path.append(str(PROJECT_ROOT))
 
 from data.datasets import ACDCHeartDataset, LungDataset
 

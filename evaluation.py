@@ -18,8 +18,7 @@ from typing import Tuple, List, Optional
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics import StructuralSimilarityIndexMeasure
 
-import losses
-from utils import utils
+from utils import utils, losses
 from data.datasets import ACDCHeartDataset, LungDataset
 from models.VoxelMorph.model import VoxelMorph
 from models.UNet.modelV4 import UNet3D, UNet3DMulti

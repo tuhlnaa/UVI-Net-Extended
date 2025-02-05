@@ -6,7 +6,7 @@ from torchinfo import summary
 
 os.environ["VXM_BACKEND"] = "pytorch"
 PROJECT_ROOT = Path(__file__).parents[1]
-sys.path.append(PROJECT_ROOT)
+sys.path.append(str(PROJECT_ROOT))
 
 import voxelmorph as vxm
 from models.UNet.model import Unet3D, Unet3D_multi

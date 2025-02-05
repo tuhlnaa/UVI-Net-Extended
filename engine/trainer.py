@@ -9,9 +9,7 @@ from torch.utils.data import DataLoader
 from typing import Dict, Optional, Tuple
 
 from utils import utils
-#from utils.meters import AverageMeter
-import losses
-
+from utils import losses
 
 class Trainer:
     """Trainer class for managing the training process of the medical image interpolation model."""

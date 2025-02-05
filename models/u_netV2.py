@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
@@ -370,18 +369,10 @@ class UNet3DMulti(nn.Module):
         # Build main decoder path
         decoder_features_main = self.decoder_features[:len(self.encoder_features)]
         for i, channels in enumerate(decoder_features_main):
-            if i > 0:
-                prev_channels += rev_encoder_features[i] + (rev_additional_dims[i] * 2)
-            self.decoder.append(ConvBlock(self.ndims, prev_channels, channels))
-            prev_channels = channels
-
-        # # Build main decoder path
-        # decoder_features_main = self.decoder_features[:len(self.encoder_features)]
-        # for i, channels in enumerate(decoder_features_main):
-        #     in_channels = (prev_channels + rev_encoder_features[i] + (rev_additional_dims[i] * 2)
-        #                 if i > 0 else prev_channels)
-        #     self.decoder.append(ConvBlock(self.ndims, in_channels, channels))
-        #     prev_channels = channels 
+            in_channels = (prev_channels + rev_encoder_features[i] + (rev_additional_dims[i] * 2)
+                        if i > 0 else prev_channels)
+            self.decoder.append(ConvBlock(self.ndims, in_channels, channels))
+            prev_channels = channels 
 
         # Build final convolution layers
         decoder_features_final = self.decoder_features[len(self.encoder_features):]

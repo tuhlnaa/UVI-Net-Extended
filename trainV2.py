@@ -1,30 +1,22 @@
 import os
-import random
-from argparse import ArgumentParser
+import wandb
+import torch
+
+from tqdm import trange
+from torch import optim
 from pathlib import Path
 from typing import Tuple, Dict
-
-import numpy as np
-import torch
-import torch.backends.cudnn as cudnn
-from torch import optim
+from argparse import ArgumentParser
 from torch.utils.data import DataLoader
-import wandb
-
-from utils import utils, datasets
-from utils.setup import setup_environment
-from tqdm import trange
 
 #from models.feature_extract import FeatureExtract
 from models.feature_extract.model import FeatureExtract
-
 #from models.unet import UNet3D, UNet3DMulti
-from models.UNet.modelV4 import UNet3D, UNet3DMulti
-
+from models.u_netV2 import UNet3D, UNet3DMulti
 #from models.voxelmorph import VoxelMorph
-from models.VoxelMorph.model import VoxelMorph
-
-from utils import losses
+from models.voxel_morph import VoxelMorph
+from utils import utils, datasets, losses
+from utils.setup import setup_environment
 from engine.trainer import Trainer
 from engine.validator import Validator
 
@@ -215,7 +207,8 @@ def main():
         flow_model=models['flow_model'],
         refinement_model=models['refinement_model'],
         reg_model_bilin=models['reg_model_bilin'],
-        criterion_ncc=criteria['ncc']
+        criterion_ncc=criteria['ncc'], 
+        device = torch.device(args.gpu)
     )
     
     # Initialize wandb

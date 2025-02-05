@@ -8,11 +8,6 @@ Original paper:
 Balakrishnan, G., Zhao, A., Sabuncu, M. R., Guttag, J., & Dalca, A. V. (2019).
 VoxelMorph: a learning framework for deformable medical image registration.
 IEEE transactions on medical imaging, 38(8), 1788-1800.
-
-Modified and tested by:
-Junyu Chen
-jchen245@jhmi.edu
-Johns Hopkins University
 """
 
 import torch

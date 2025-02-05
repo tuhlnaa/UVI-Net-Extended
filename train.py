@@ -1,26 +1,26 @@
 import os
 os.environ["VXM_BACKEND"] = "pytorch"
 
-import random
-from argparse import ArgumentParser
-
-import numpy as np
-import torch
-import torch.backends.cudnn as cudnn
-import torch.nn.functional as F
 import wandb
+import torch
+import random
+import numpy as np
+import torch.nn.functional as F
+import torch.backends.cudnn as cudnn
+
 from torch import optim
 from torch.utils.data import DataLoader
+from argparse import ArgumentParser
 from tqdm import trange
 
-from utils import datasets, utils, losses
-from models.UNet.model import Unet3D, Unet3D_multi
-from models.VoxelMorph.model import VoxelMorph
-from models.feature_extract.model import FeatureExtract
 import voxelmorph as vxm
-
 from data.datasets import ACDCHeartDataset, LungDataset
-from models.UNet.modelV4 import UNet3D, UNet3DMulti
+from models.voxel_morph import VoxelMorph
+from models.feature_extract.model import FeatureExtract
+#from models.u_net import Unet3D, Unet3D_multi
+from models.u_netV2 import UNet3D, UNet3DMulti
+from utils import datasets, utils, losses
+
 
 def set_seed(seed):
     random.seed(seed)

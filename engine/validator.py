@@ -15,7 +15,7 @@ class Validator:
         refinement_model: nn.Module,
         reg_model_bilin: nn.Module,
         criterion_ncc: nn.Module,
-        device: torch.device = torch.device('cuda')
+        device: torch.device
     ):
         """Initialize validator with models and evaluation metrics."""
         self.flow_model = flow_model

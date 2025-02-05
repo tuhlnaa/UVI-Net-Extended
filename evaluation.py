@@ -20,8 +20,8 @@ from torchmetrics import StructuralSimilarityIndexMeasure
 
 from utils import utils, losses
 from data.datasets import ACDCHeartDataset, LungDataset
-from models.VoxelMorph.model import VoxelMorph
-from models.UNet.modelV4 import UNet3D, UNet3DMulti
+from models.voxel_morph import VoxelMorph
+from models.u_netV2 import UNet3D, UNet3DMulti
 from models.feature_extract.model import FeatureExtract
 
 # Initialize rich console

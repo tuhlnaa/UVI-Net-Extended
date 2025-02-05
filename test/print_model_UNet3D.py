@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
 import voxelmorph as vxm
-from models.UNet.modelV4 import UNet3D, Unet3D_multi
+from models.u_netV2 import UNet3D, Unet3D_multi
 
 # configure unet features
 nb_features = [

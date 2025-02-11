@@ -1,3 +1,7 @@
+"""
+Based on https://github.com/jerinka/voxelmorph_demo/blob/main/VoxelMorph_Tutorial.ipynb
+"""
+
 # -*- coding: utf-8 -*-
 """VoxelMorph Tutorial.ipynb
 

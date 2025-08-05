@@ -4,12 +4,6 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.3%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
 [![GitHub repo size](https://img.shields.io/github/repo-size/tuhlnaa/UVI-Net-Extended?label=Repo%20size)](https://github.com/tuhlnaa/UVI-Net-Extended)
 
-<p align="center">
-  <a href="https://github.com/tuhlnaa/UVI-Net-Extended">
-    <img alt="Repobeats analytics image" src = "https://repobeats.axiom.co/api/embed/d546e92cbd54d8b687c535b64de7bd7ae7e969ea.svg">
-  </a>
-</p>
-
 <br>
 
 ## Abstract

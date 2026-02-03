@@ -135,17 +135,6 @@ python train.py --dataset lung
 
 <br>
 
-## 🤝 Contributing
-Contributions are welcome! If you'd like to add another solution or improve existing implementations:
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingSolution`)
-3. Commit your changes (`git commit -m 'Add some AmazingSolution'`)
-4. Push to the branch (`git push origin feature/AmazingSolution`)
-5. Open a Pull Request
-
-<br>
-
 ## 📝 Citation
 
 This repository is based on the following paper:
